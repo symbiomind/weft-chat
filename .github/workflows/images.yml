@@ -51,7 +51,7 @@ jobs:
           node-version: 22
 
       - name: Client tests
-        run: node --test tests/client/
+        run: node --test "tests/client/*.test.mjs"
 
   image:
     needs: test

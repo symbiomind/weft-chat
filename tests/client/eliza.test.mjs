@@ -1,6 +1,6 @@
 /* Tests for web/js/eliza.js — run under node.
  *
- *   node --test tests/client/
+ *   node --test "tests/client/*.test.mjs"
  */
 
 import assert from "node:assert/strict";

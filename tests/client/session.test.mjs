@@ -1,6 +1,6 @@
 /* Tests for web/js/session.js — run under node, not pytest.
  *
- *   node --test tests/client/
+ *   node --test "tests/client/*.test.mjs"
  *
  * The server suite runs inside the container (that is where python lives); this runs
  * on the host (that is where node lives). Two runtimes, two suites, each where it

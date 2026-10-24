@@ -1,6 +1,6 @@
 /* Tests for the pure half of web/js/icons.js — run under node.
  *
- *   node --test tests/client/
+ *   node --test "tests/client/*.test.mjs"
  *
  * The icons themselves need a DOM; what the Pick bar SAYS a weft can do does not.
  */

@@ -1,6 +1,6 @@
 /* Tests for web/js/colours.js — run under node.
  *
- *   node --test tests/client/
+ *   node --test "tests/client/*.test.mjs"
  *
  * The one mistake worth pinning: an undressed menu row inheriting the CURRENT pick's
  * colours from :root, so a weft nobody has dressed shows up wearing somebody else's.

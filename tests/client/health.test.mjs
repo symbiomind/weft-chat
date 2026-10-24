@@ -1,6 +1,6 @@
 /* Tests for web/js/health.js and session.ping() — run under node.
  *
- *   node --test tests/client/
+ *   node --test "tests/client/*.test.mjs"
  *
  * The LED is only worth having if it tells the truth, and the two ways it lies are
  * both silent: staying green while every request fails, or flashing red because one
