@@ -1,0 +1,97 @@
+---
+# weft-service configuration. Copy to config.yml (the real file is gitignored).
+#
+# ${ENV_VAR} is expanded once, at load. Every secret arrives this way — there is no
+# secret literal in this file, and the loader will not stop you from putting one here,
+# so don't.
+#
+# The loader NEVER raises. A missing file, unparseable YAML, or a missing block
+# degrades the affected subsystem and logs loudly; /health always answers. See
+# app/config.py for the full degradation matrix.
+
+server:
+  name: weft-service
+  port: 5010
+
+  # The origin users actually reach this service on, as the browser sees it
+  # (scheme + host + port, no trailing slash). Used for cookie scoping and as the
+  # default allowed origin.
+  public_origin: "https://weft.example.com"
+
+  database:
+    # sqlite now; postgres later is a change to this one line
+    # (postgresql+asyncpg://user:pass@host/db) plus swapping aiosqlite for asyncpg.
+    url: "sqlite+aiosqlite:///./data/weft.db"
+
+  jwt:
+    secret: "${WEFT_JWT_SECRET}"
+    algorithm: HS256
+    issuer: "weft-service"
+    audience: "weft-web"
+    # Tolerance for clock skew between this container and... itself, mostly. Kept
+    # small: large leeway extends the life of a token you thought had expired.
+    leeway_seconds: 10
+
+  csrf:
+    secret: "${WEFT_CSRF_SECRET}"
+    ttl_seconds: 86400
+
+  vault:
+    key: "${WEFT_VAULT_KEY}"
+    key_id: "k1"
+    old_keys: "${WEFT_VAULT_OLD_KEYS}"   # decrypt-only, for rotation
+
+  security:
+    access_token_ttl_seconds: 900        # 15 min
+    refresh_token_ttl_days: 30
+    session_absolute_ttl_days: 30        # a family dies at this age no matter how often it rotates
+    session_purge_grace_days: 7          # a signed-out or expired device is deleted this long after
+
+    # COOKIE FLAGS — both default true and should stay true anywhere real.
+    #
+    # cookie_prefix_host adds the __Host- prefix, which browsers only accept on a
+    # Secure cookie with Path=/ and no Domain. Over plain http:// (local dev) the
+    # cookie is silently REJECTED and login appears to work but refresh never does.
+    # That is the trap. Turn both off together for HTTP dev, never in production.
+    cookie_secure: true
+    cookie_prefix_host: true
+    cookie_samesite: strict
+
+    # Checked on every state-changing request and on the WebSocket handshake.
+    # Empty means "public_origin only". A wrong entry here is a CSRF hole.
+    allowed_origins:
+      - "https://weft.example.com"
+
+    login_max_attempts: 5                # per username, then a lockout
+    login_lockout_seconds: 900
+    login_ip_window_seconds: 300         # per-IP sliding window
+    login_ip_max: 20
+
+    invite_ttl_hours: 168                # 7 days
+    password_min_length: 12
+
+    hsts: true
+    hsts_include_subdomains: false
+
+    # Leave false. /docs is a map of your auth surface.
+    expose_docs: false
+
+  speech:
+    # Spoken clips are kept on the server so a reply can be heard again: after a
+    # reload, on another device, or to fill in a paragraph whose voice failed. Counted
+    # from the last time a clip was played. A replay that misses costs a new synthesis,
+    # which matters for a paid voice. 0 turns the cache off, and the next start clears
+    # what was kept.
+    cache_ttl_hours: 168                 # 7 days
+
+  websocket:
+    auth_deadline_seconds: 5             # send the auth frame within this, or be closed
+    heartbeat_seconds: 30
+    max_frame_bytes: 65536
+    max_messages_per_second: 20
+    max_connections_per_user: 8
+    sweep_interval_seconds: 60           # re-validate live sockets against the DB
+
+  bootstrap:
+    owner_username: "${WEFT_BOOTSTRAP_OWNER}"
+    owner_password: "${WEFT_BOOTSTRAP_PASSWORD}"

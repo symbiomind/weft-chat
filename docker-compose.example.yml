@@ -1,0 +1,33 @@
+---
+# Run the published image. Copy to docker-compose.yml and adjust (the real file is
+# gitignored), then copy .env.example to .env and config.example.yml to config.yml.
+#
+# The same image is on both registries; use whichever you prefer:
+#   ghcr.io/symbiomind/weft-chat
+#   docker.io/symbiomind/weft-chat
+# Tags: latest (the main branch), dev (the dev branch).
+#
+# To work on weft-chat itself, see docker-compose.example-build.yml.
+
+services:
+  weft-chat:
+    image: ghcr.io/symbiomind/weft-chat:latest
+    container_name: weft-chat
+    user: "1000:1000"   # or whatever your uid:gid is — data/ is written as this user
+    ports:
+      # SECURITY, load-bearing: bind to loopback only.
+      #
+      # Every Secure-cookie and Origin decision in this service assumes the only
+      # thing that can reach this port is your reverse proxy, which terminates TLS
+      # and sets X-Forwarded-*. The day this becomes "5010:5010" for quick testing,
+      # those headers become attacker-controllable and the auth design stops holding.
+      # If you need direct access, use an SSH tunnel, not a published port.
+      - 127.0.0.1:5010:5010
+    restart: unless-stopped
+    env_file: .env
+    # environment:
+    #   TZ: Europe/London   # log timestamps on your wall clock; UTC if unset
+    volumes:
+      - ./config.yml:/app/config.yml:ro   # service config (read-only)
+      - ./data:/app/data                  # sqlite db + bootstrap credential
+      - ./logs:/app/logs

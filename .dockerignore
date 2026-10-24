@@ -1,0 +1,13 @@
+# Keep the build context to what the Dockerfile copies. Secrets, live data and local
+# config never need to reach the Docker daemon.
+.git
+.env
+config.yml
+docker-compose.yml
+data/
+logs/
+notes/
+design/
+tests/
+.claude/
+**/__pycache__

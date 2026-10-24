@@ -1,0 +1,49 @@
+# Local-only operator files. Convention follows ind-bridge: the example ships,
+# the real one stays here.
+
+.env
+.env.*
+!.env.example
+
+config.yml
+config.*.yml
+!config.example.yml
+
+docker-compose.yml
+!docker-compose.example.yml
+
+# The database, the bootstrap credential, and anything else the service writes.
+data/*
+!data/.gitkeep
+
+logs/
+*.log
+
+# Local working notes. DESIGN-*.md that earn their keep get promoted by hand.
+notes/
+
+# Static HTML looks-tests. Each one settled how something should look, then evolved
+# further once it went into web/. The client is the source of truth; these are
+# working history, not documentation.
+design/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Editor / OS
+.DS_Store
+*.swp
+CLAUDE.md
+
+# Local-only stand-in images for the chat background. Personal pictures, so never
+# committed: git history is forever. The client degrades gracefully when these are
+# absent: no backdrop, no error.
+web/local/
+
+# Claude Code local session state
+.claude/

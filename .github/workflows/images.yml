@@ -1,0 +1,124 @@
+name: tests and images
+
+# What gets published, and from where:
+#
+#   push to main      ->  latest, sha-<short>
+#   push to dev       ->  dev, sha-<short>
+#   tag v1.2.3        ->  1.2.3, 1.2
+#   pull request      ->  tests run and the image is built, nothing is pushed
+#
+# Every image goes to ghcr.io/symbiomind/weft-chat, and to docker.io/symbiomind/weft-chat
+# when the DOCKERHUB_USERNAME and DOCKERHUB_TOKEN secrets are set. Without them the
+# Docker Hub half is skipped rather than failing the run.
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+# A newer push to the same branch makes an in-flight run pointless.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Forgejo Actions reads .github/workflows too. These jobs are written for GitHub's
+    # runners and registry token, so a Forgejo mirror skips them instead of failing.
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"   # matches the Dockerfile
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Service tests
+        run: python -m pytest -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Client tests
+        run: node --test tests/client/
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write   # push to ghcr.io with the run's own token
+    env:
+      HAS_DOCKERHUB: ${{ secrets.DOCKERHUB_TOKEN != '' }}
+      PUSH: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # arm64 alongside amd64, for small home servers. Every compiled dependency ships
+      # an aarch64 wheel, so emulation installs wheels rather than compiling.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: env.PUSH == 'true' && env.HAS_DOCKERHUB == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        env:
+          # Multi-arch images are an index of per-platform manifests; ghcr.io reads the
+          # description from the index, so annotate both levels.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: |
+            ghcr.io/symbiomind/weft-chat
+            name=docker.io/symbiomind/weft-chat,enable=${{ env.HAS_DOCKERHUB == 'true' }}
+          # latest means "the main branch", set explicitly below. Off here so a version
+          # tag doesn't move it as well.
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short,enable=${{ startsWith(github.ref, 'refs/heads/') }}
+            type=ref,event=pr
+          labels: |
+            org.opencontainers.image.title=weft-chat
+            org.opencontainers.image.description=A self-hosted chat window: the service and the client in one image.
+          annotations: |
+            org.opencontainers.image.description=A self-hosted chat window: the service and the client in one image.
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ env.PUSH == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

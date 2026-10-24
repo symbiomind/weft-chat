@@ -1,0 +1,28 @@
+/* Weft — the theme system: one palette, three modes
+ *
+ * Lifted verbatim from the integration bench prototype when the client
+ * moved to ES modules. Kept as a separate file rather than inline so the CSP can be a
+ * plain 'self' with no nonce, and so the browser can cache it across page loads.
+ */
+
+/* same theme system as the other demos */
+:root{
+  --fern:#7fb069; --twilight:#5d5d81;
+  --bg:#12141a; --panel:#1b1e27; --text:#e6e8ee; --dim:#8b90a0;
+  --edge:#262a36; --in:#232733; --inedge:#2e3342;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme=dark]){
+    --bg:#f2f0ea; --panel:#e7e4dc; --text:#23262e; --dim:#6d7180; --edge:#d5d2c8; --in:#ffffff; --inedge:#c9c6bc;
+  }
+}
+:root[data-theme=light]{
+  --bg:#f2f0ea; --panel:#e7e4dc; --text:#23262e; --dim:#6d7180; --edge:#d5d2c8; --in:#ffffff; --inedge:#c9c6bc;
+}
+:root[data-theme=dark]{
+  --bg:#12141a; --panel:#1b1e27; --text:#e6e8ee; --dim:#8b90a0; --edge:#262a36; --in:#232733; --inedge:#2e3342;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:16px/1.45 system-ui,-apple-system,sans-serif;height:100dvh;overflow:hidden}
+

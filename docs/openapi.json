@@ -1,0 +1,3811 @@
+{
+  "components": {
+    "schemas": {
+      "Attachment": {
+        "description": "A picture as a message refers to it: the stored hash, and the name it was given.",
+        "properties": {
+          "hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Hash",
+            "type": "string"
+          },
+          "name": {
+            "default": "picture",
+            "maxLength": 512,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hash"
+        ],
+        "title": "Attachment",
+        "type": "object"
+      },
+      "AttachmentOut": {
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hash"
+        ],
+        "title": "AttachmentOut",
+        "type": "object"
+      },
+      "ChatIn": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message-Input"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "weft_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Weft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weft_id",
+          "messages"
+        ],
+        "title": "ChatIn",
+        "type": "object"
+      },
+      "ColoursIn": {
+        "description": "Dress a weft in a pair of colours, or send nulls to give it back to the theme.\nOne without the other is refused — a gradient with one end is not a gradient.",
+        "properties": {
+          "colour_a": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9a-fA-F]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour A"
+          },
+          "colour_b": {
+            "anyOf": [
+              {
+                "pattern": "^#[0-9a-fA-F]{6}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour B"
+          }
+        },
+        "title": "ColoursIn",
+        "type": "object"
+      },
+      "CountsOut": {
+        "properties": {
+          "wefts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Wefts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "wefts"
+        ],
+        "title": "CountsOut",
+        "type": "object"
+      },
+      "DismissAllIn": {
+        "properties": {
+          "weft_id": {
+            "title": "Weft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weft_id"
+        ],
+        "title": "DismissAllIn",
+        "type": "object"
+      },
+      "DoorKeyOut": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "guide": {
+            "title": "Guide",
+            "type": "string"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "mcp_url": {
+            "title": "Mcp Url",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "open",
+          "mcp_url",
+          "key",
+          "guide"
+        ],
+        "title": "DoorKeyOut",
+        "type": "object"
+      },
+      "DoorOut": {
+        "properties": {
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "mcp_url": {
+            "title": "Mcp Url",
+            "type": "string"
+          },
+          "open": {
+            "title": "Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "open",
+          "mcp_url"
+        ],
+        "title": "DoorOut",
+        "type": "object"
+      },
+      "EngineIn": {
+        "description": "Bind a weft to a provider and a model, or unbind it.\n\nBoth or neither, like the voice: a provider with no model has nothing to ask for,\nand a model with no provider has nowhere to be asked.",
+        "properties": {
+          "model_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          }
+        },
+        "title": "EngineIn",
+        "type": "object"
+      },
+      "FinishIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 64,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "FinishIn",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeadOut": {
+        "properties": {
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "session_key": {
+            "title": "Session Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_key",
+          "last_seq"
+        ],
+        "title": "HeadOut",
+        "type": "object"
+      },
+      "HeaderRow": {
+        "description": "One extra request header. Checked properly by ``upstream.clean_headers``; the\nlengths here only stop a body from being enormous before that runs.",
+        "properties": {
+          "name": {
+            "maxLength": 128,
+            "title": "Name",
+            "type": "string"
+          },
+          "value": {
+            "default": "",
+            "maxLength": 2048,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "HeaderRow",
+        "type": "object"
+      },
+      "HeadersIn": {
+        "description": "Replace the extra headers a weft sends upstream. An empty list removes them.\n\nThe whole list every time, like the history dials: the page holds the set, and a\npatch-one-row endpoint would need an identity for a row that has none but its name.",
+        "properties": {
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/HeaderRow"
+            },
+            "maxItems": 32,
+            "title": "Headers",
+            "type": "array"
+          }
+        },
+        "title": "HeadersIn",
+        "type": "object"
+      },
+      "HistoryIn": {
+        "description": "Set how a weft's conversation is kept, how much is sent, and how much is held.\n\nEvery field is required rather than optional-with-a-default. This endpoint replaces\nthe set, and a partial update would let a client that only knew about some of them\nsilently reset the rest to defaults the user never chose.\n\n``send_turns`` is allowed to exceed ``window_turns`` and is deliberately NOT clamped\nto it. The effective cap is the smaller of the two, but the number the user typed is\nthe number that gets stored, so raising the window later finds their choice still\nwaiting rather than quietly rewritten behind their back.",
+        "properties": {
+          "history": {
+            "$ref": "#/components/schemas/PickHistory"
+          },
+          "send_turns": {
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Send Turns",
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "session_provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Provider Id"
+          },
+          "window_turns": {
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Window Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "history",
+          "send_turns",
+          "window_turns",
+          "session_provider_id",
+          "session_id"
+        ],
+        "title": "HistoryIn",
+        "type": "object"
+      },
+      "InviteOut": {
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_in"
+        ],
+        "title": "InviteOut",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "properties": {
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "MarkOut": {
+        "description": "One tip this account has finished: a done tip, or a found hidden one.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "since": {
+            "title": "Since",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "since",
+          "at"
+        ],
+        "title": "MarkOut",
+        "type": "object"
+      },
+      "Message-Input": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "maxItems": 6,
+            "title": "Attachments",
+            "type": "array"
+          },
+          "content": {
+            "maxLength": 32768,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "spoken": {
+            "default": false,
+            "title": "Spoken",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Message",
+        "type": "object"
+      },
+      "Message-Output": {
+        "properties": {
+          "attachments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "spoken": {
+            "default": false,
+            "title": "Spoken",
+            "type": "boolean"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Message",
+        "type": "object"
+      },
+      "ModelOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owned_by": {
+            "title": "Owned By",
+            "type": "string"
+          },
+          "wefts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Wefts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "owned_by"
+        ],
+        "title": "ModelOut",
+        "type": "object"
+      },
+      "NotificationOut": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "weft_id": {
+            "title": "Weft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "weft_id",
+          "title",
+          "body",
+          "created_at"
+        ],
+        "title": "NotificationOut",
+        "type": "object"
+      },
+      "PasswordChangeRequest": {
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChangeRequest",
+        "type": "object"
+      },
+      "PickHistory": {
+        "description": "Whether a pick keeps a copy of its conversation on the device showing it.\n\n`memory` is the default and means what Weft has always done: a reload empties the\nwindow. `local` means the browser keeps a scrollback so a refresh does not wipe what\nyou were reading.\n\n`session` (2026-10-04) means the conversation lives in a session store: a\nmemory-mcp-ce server the user added as a `session` provider. The service relays the\nthread to and from it and keeps nothing itself. The service still stores no conversation, because\nrelaying is not storing: the store is upstream, like the gateway, and every device\nthat opens the pick sees the same thread because the store has it.\n\nNone of these values stores anything HERE. The service keeps no\nconversation, and `local` is a copy in one browser that never reaches this side of\nthe glass. What is stored in this column is the *choice*, which is furniture — the\nsame argument the voice columns below already make.",
+        "enum": [
+          "memory",
+          "local",
+          "session"
+        ],
+        "title": "PickHistory",
+        "type": "string"
+      },
+      "ProviderIn": {
+        "description": "The Add form. ``secret`` is optional because a gateway on the private network\noften needs no bearer at all, and requiring one would mean inventing a placeholder\nthat then gets sent upstream.",
+        "properties": {
+          "base_url": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Base Url",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderKind",
+            "default": "llm"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "secret": {
+            "default": "",
+            "maxLength": 4096,
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "base_url"
+        ],
+        "title": "ProviderIn",
+        "type": "object"
+      },
+      "ProviderKind": {
+        "description": "What a stored endpoint is for.\n\n`llm` is an OpenAI-compatible chat/models endpoint. `tts` is a speech endpoint\n— the same `/v1`-shaped surface, but answering `/audio/speech` instead\nof `/chat/completions`. Both live in this one table because they are the same thing\nfrom the vault's point of view: somebody else's URL and somebody else's key.\n\n`session` is a memory-mcp-ce server whose `/v1/sessions` API stores conversations\n(2026-10-04). Same table for the same reason: a URL and a key that are somebody\nelse's, sealed in the vault, opened only by the service.\n\nAn enum rather than a free string so the picker can filter on it without a\nmagic-value convention, and so adding `stt` later is a migration rather than a\nconvention nobody wrote down.",
+        "enum": [
+          "llm",
+          "tts",
+          "session",
+          "stt"
+        ],
+        "title": "ProviderKind",
+        "type": "string"
+      },
+      "ProviderOut": {
+        "properties": {
+          "base_url": {
+            "title": "Base Url",
+            "type": "string"
+          },
+          "has_secret": {
+            "title": "Has Secret",
+            "type": "boolean"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProviderKind"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "weft_count": {
+            "title": "Weft Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "base_url",
+          "kind",
+          "hint",
+          "has_secret",
+          "weft_count"
+        ],
+        "title": "ProviderOut",
+        "type": "object"
+      },
+      "ProviderPatch": {
+        "description": "The Edit form. Every field optional, and ``secret`` has three meanings:\n\n* absent / ``null`` — leave the stored token alone. This is what the form sends\n  when the user did not type in the blank token field, and it is why an edit does\n  not require re-entering a secret nobody can read back.\n* ``\"\"`` — clear it. The provider then sends no Authorization header.\n* anything else — replace it.",
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret"
+          }
+        },
+        "title": "ProviderPatch",
+        "type": "object"
+      },
+      "RestartIn": {
+        "properties": {
+          "what": {
+            "default": "help",
+            "enum": [
+              "help",
+              "found"
+            ],
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "title": "RestartIn",
+        "type": "object"
+      },
+      "Role": {
+        "description": "Three levels, and the gap between them is the whole authorization model.\n\nowner  — exactly one at bootstrap; the only role that may grant `admin` or change\n         anyone's role. The single privilege-escalation path in the service.\nadmin  — may create and deactivate users and mint `user` invites. May NOT change\n         roles, and may not read anyone's vault.\nuser   — owns their own providers and nothing else.",
+        "enum": [
+          "owner",
+          "admin",
+          "user"
+        ],
+        "title": "Role",
+        "type": "string"
+      },
+      "SessionOut": {
+        "description": "One signed-in device, as the Account screen shows it.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "last_seen_at": {
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "os": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Os"
+          },
+          "seen_seconds_ago": {
+            "title": "Seen Seconds Ago",
+            "type": "integer"
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent"
+          }
+        },
+        "required": [
+          "id",
+          "current",
+          "active",
+          "browser",
+          "os",
+          "ip",
+          "user_agent",
+          "created_at",
+          "last_seen_at",
+          "expires_at",
+          "seen_seconds_ago"
+        ],
+        "title": "SessionOut",
+        "type": "object"
+      },
+      "SpeechIn": {
+        "properties": {
+          "text": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "weft_id": {
+            "maxLength": 36,
+            "minLength": 1,
+            "title": "Weft Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weft_id",
+          "text"
+        ],
+        "title": "SpeechIn",
+        "type": "object"
+      },
+      "SttIn": {
+        "description": "The whole settings block, replaced at once, as the Settings form sends it.",
+        "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "maxLength": 16,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "send_on_release": {
+            "default": false,
+            "title": "Send On Release",
+            "type": "boolean"
+          },
+          "tell_weft": {
+            "default": true,
+            "title": "Tell Weft",
+            "type": "boolean"
+          }
+        },
+        "title": "SttIn",
+        "type": "object"
+      },
+      "SttOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "send_on_release": {
+            "title": "Send On Release",
+            "type": "boolean"
+          },
+          "tell_weft": {
+            "title": "Tell Weft",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "model",
+          "language",
+          "send_on_release",
+          "tell_weft",
+          "available"
+        ],
+        "title": "SttOut",
+        "type": "object"
+      },
+      "SwitchIn": {
+        "properties": {
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "SwitchIn",
+        "type": "object"
+      },
+      "ThreadOut": {
+        "properties": {
+          "full": {
+            "default": true,
+            "title": "Full",
+            "type": "boolean"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "last_seq": {
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message-Output"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "session_key": {
+            "title": "Session Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_key",
+          "messages",
+          "has_more",
+          "last_seq"
+        ],
+        "title": "ThreadOut",
+        "type": "object"
+      },
+      "TipOut": {
+        "properties": {
+          "after": {
+            "items": {
+              "type": "string"
+            },
+            "title": "After",
+            "type": "array"
+          },
+          "done_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done On"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "order": {
+            "title": "Order",
+            "type": "integer"
+          },
+          "page": {
+            "title": "Page",
+            "type": "string"
+          },
+          "point_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Point At"
+          },
+          "section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Section"
+          },
+          "show_on": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Show On"
+          },
+          "since": {
+            "title": "Since",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          }
+        },
+        "required": [
+          "id",
+          "page",
+          "group",
+          "order",
+          "after",
+          "section",
+          "point_at",
+          "done_on",
+          "show_on",
+          "when",
+          "since",
+          "title",
+          "html"
+        ],
+        "title": "TipOut",
+        "type": "object"
+      },
+      "TipsOut": {
+        "properties": {
+          "done": {
+            "items": {
+              "$ref": "#/components/schemas/MarkOut"
+            },
+            "title": "Done",
+            "type": "array"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          },
+          "tips": {
+            "items": {
+              "$ref": "#/components/schemas/TipOut"
+            },
+            "title": "Tips",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tips",
+          "on",
+          "done"
+        ],
+        "title": "TipsOut",
+        "type": "object"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "csrf": {
+            "title": "Csrf",
+            "type": "string"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "csrf",
+          "user"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "TranscriptOut": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TranscriptOut",
+        "type": "object"
+      },
+      "UploadOut": {
+        "properties": {
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "reference": {
+            "title": "Reference",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hash",
+          "reference"
+        ],
+        "title": "UploadOut",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "must_change_password": {
+            "title": "Must Change Password",
+            "type": "boolean"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "display_name",
+          "role",
+          "must_change_password"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "VoiceIn": {
+        "description": "Give a weft a voice, or take it away. All three or none.",
+        "properties": {
+          "tts_model": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Model"
+          },
+          "tts_provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Provider Id"
+          },
+          "tts_voice": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Voice"
+          }
+        },
+        "title": "VoiceIn",
+        "type": "object"
+      },
+      "VoicesOut": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          },
+          "voices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Voices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "models",
+          "voices"
+        ],
+        "title": "VoicesOut",
+        "type": "object"
+      },
+      "WeftIn": {
+        "description": "Add a weft. The name is all it needs; the engine can be given now or later.",
+        "properties": {
+          "model_id": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WeftIn",
+        "type": "object"
+      },
+      "WeftOut": {
+        "description": "One weft, everything about it. The Pick menu and the weft page read the same\nshape, so a value set on one is never missing from the other.",
+        "properties": {
+          "background": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Background"
+          },
+          "colour_a": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour A"
+          },
+          "colour_b": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Colour B"
+          },
+          "has_door": {
+            "default": false,
+            "title": "Has Door",
+            "type": "boolean"
+          },
+          "has_voice": {
+            "default": false,
+            "title": "Has Voice",
+            "type": "boolean"
+          },
+          "headers": {
+            "items": {
+              "$ref": "#/components/schemas/HeaderRow"
+            },
+            "title": "Headers",
+            "type": "array"
+          },
+          "history": {
+            "$ref": "#/components/schemas/PickHistory"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "send_turns": {
+            "title": "Send Turns",
+            "type": "integer"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "session_key": {
+            "title": "Session Key",
+            "type": "string"
+          },
+          "session_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Provider Id"
+          },
+          "tts_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Model"
+          },
+          "tts_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Provider Id"
+          },
+          "tts_voice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tts Voice"
+          },
+          "window_turns": {
+            "title": "Window Turns",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "history",
+          "send_turns",
+          "window_turns",
+          "session_key"
+        ],
+        "title": "WeftOut",
+        "type": "object"
+      },
+      "WeftPatch": {
+        "description": "Rename a weft. The only thing about it that is not its own section.",
+        "properties": {
+          "name": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "WeftPatch",
+        "type": "object"
+      },
+      "app__routes__providers__ModelsOut": {
+        "properties": {
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelOut"
+            },
+            "title": "Models",
+            "type": "array"
+          },
+          "provider_id": {
+            "title": "Provider Id",
+            "type": "string"
+          },
+          "provider_name": {
+            "title": "Provider Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider_id",
+          "provider_name",
+          "models"
+        ],
+        "title": "ModelsOut",
+        "type": "object"
+      },
+      "app__routes__stt__ModelsOut": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          }
+        },
+        "required": [
+          "models"
+        ],
+        "title": "ModelsOut",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "weft-service",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/attachments": {
+      "put": {
+        "description": "Store one picture for a message that is about to be sent.\n\nThe body is the picture itself, as for a background: a raw body is what lets the\nsize cap bite while it streams. SVG is refused (markup that can carry script), and\nwhat is stored is never what was sent; see app/backgrounds.py.",
+        "operationId": "upload_api_attachments_put",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Upload",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/api/attachments/{digest}": {
+      "get": {
+        "description": "One of the caller's own pictures.\n\nLooked up under the caller's own directory, so a hash someone else uploaded gets the\nsame 404 as one nobody did. Cacheable forever, privately: the name is the hash of\nthe bytes.",
+        "operationId": "fetch_api_attachments__digest__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Digest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fetch",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/api/auth/csrf": {
+      "get": {
+        "description": "Issue a CSRF token as both a readable cookie and a body value.\n\nCalled by the client before its first state-changing request. Unauthenticated by\nnecessity: login is itself a protected POST, so a token has to be obtainable before\nanyone is logged in. That is safe because the token proves nothing about identity —\nit only proves the request was made by script running on our own origin.",
+        "operationId": "get_csrf_api_auth_csrf_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Csrf Api Auth Csrf Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Csrf",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "description": "Authenticate and start a session.\n\nEvery failure below returns the same 401 with the same body, and takes comparable\ntime. The rate-limit rejection is the one exception — it returns 429 with\nRetry-After, because telling a locked-out user to come back later is useful to them\nand tells an attacker only what they already know.",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "End this device's session.\n\nAuthenticates from the refresh cookie, NOT from an access token, so it still works\nafter the access token has expired — which is the common case, because people log\nout after leaving a tab open overnight.\n\nAlways returns 200, even for an unknown or absent cookie. Logging out is not a\nthing that should be able to fail, and reporting \"no such session\" would confirm\nwhich tokens are real.",
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Logout Api Auth Logout Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/logout-all": {
+      "post": {
+        "description": "End every session for this account, on every device.\n\nTwo steps, and BOTH are required:\n\n1. Revoke every refresh family — stops new access tokens being minted.\n2. Bump ``token_version`` — invalidates every access token already out there.\n\nDoing only the first leaves a window of up to the access-token TTL in which a\nstolen token still works, which defeats the point of the button. ``tv`` exists\nprecisely to close that window.",
+        "operationId": "logout_all_api_auth_logout_all_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Logout All Api Auth Logout All Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout All",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Who am I.\n\nUses the unrestricted dependency so a bootstrap credential can render the\n\"you must change your password\" screen instead of getting a 409 it cannot explain.",
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/password": {
+      "post": {
+        "description": "Change your own password.\n\nRequires the current password even though the caller is already authenticated:\nthat is what stops a stolen access token, or an XSS holding one, from locking the\nreal owner out of their own account.\n\nOn success every *other* session is ended. The device doing the change keeps\nworking — logging someone out for successfully securing their account trains them\nnot to.",
+        "operationId": "change_password_api_auth_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Change Password Api Auth Password Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Password",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "description": "Rotate the refresh token and mint a fresh access token.\n\nOn ANY failure the refresh cookie is cleared. Leaving a rejected cookie in place\nwould have the client retry it forever — and if the rejection was reuse detection,\nevery retry looks like another attack.",
+        "operationId": "refresh_session_api_auth_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Refresh Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/sessions": {
+      "get": {
+        "description": "Every device this account is signed in on, this one first.",
+        "operationId": "list_sessions_api_auth_sessions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionOut"
+                  },
+                  "title": "Response List Sessions Api Auth Sessions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/sessions/{session_id}": {
+      "delete": {
+        "description": "Sign one device out. Its next request is refused, not merely its next refresh.\n\n404 for a device that is not yours, already signed out, or never existed — one\nanswer for all three, so an id cannot be probed for. Ending the device you are on is\nallowed and is the same as /logout, cookies and all.",
+        "operationId": "end_session_api_auth_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response End Session Api Auth Sessions  Session Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "End Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "description": "Relay one turn of conversation to whatever the weft is bound to.",
+        "operationId": "chat_api_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/api/door/invite/{token}": {
+      "get": {
+        "description": "The page an invite points at: mints the weft's key and serves the guide, once.\n\nRead by the agent, which has no Weft login: the address is the credential. Markdown,\nbecause a model reads it. A second read gets a 410, which says the invite existed\nand is gone, rather than a 404 that could be a typo.",
+        "operationId": "read_invite_api_door_invite__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{20,64}$",
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Invite",
+        "tags": [
+          "door"
+        ]
+      }
+    },
+    "/api/door/keys": {
+      "delete": {
+        "description": "Close every one of this user's doors at once.",
+        "operationId": "close_every_door_api_door_keys_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Close Every Door",
+        "tags": [
+          "door"
+        ]
+      }
+    },
+    "/api/door/upload/{ticket}": {
+      "put": {
+        "description": "Store a picture sent to a one-time address from the ``upload`` tool.\n\nThe address is used up by trying it, whether the picture turns out to be one or\nnot: a second try needs a second address. The content type is not consulted.\n``curl -T`` sends none, and every byte is decoded and re-encoded anyway, which is\nwhat refuses a file that is not a picture (app/backgrounds.py).",
+        "operationId": "upload_api_door_upload__ticket__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{20,64}$",
+              "title": "Ticket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload",
+        "tags": [
+          "door"
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "description": "One weft's waiting notifications, newest first.",
+        "operationId": "list_notifications_api_notifications_get",
+        "parameters": [
+          {
+            "description": "The weft whose notifications to list.",
+            "in": "query",
+            "name": "weft",
+            "required": true,
+            "schema": {
+              "description": "The weft whose notifications to list.",
+              "title": "Weft",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response List Notifications Api Notifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notifications",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/counts": {
+      "get": {
+        "description": "How many notifications each weft has waiting. Wefts with none are left out.",
+        "operationId": "counts_api_notifications_counts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Counts",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/dismiss": {
+      "post": {
+        "description": "Dismiss every notification one weft has waiting.",
+        "operationId": "dismiss_all_api_notifications_dismiss_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissAllIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Dismiss All Api Notifications Dismiss Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss All",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/notifications/{note_id}": {
+      "delete": {
+        "description": "Dismiss one notification. It is gone, on every device.",
+        "operationId": "dismiss_api_notifications__note_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/providers": {
+      "get": {
+        "description": "Every provider this user owns, oldest first, each with how many wefts it answers.\n\n``selectinload`` on the wefts turns what would be one query per row into two\nqueries total. With a handful of providers that is not a performance concern; it is\nhere so the N+1 never gets written in the first place.",
+        "operationId": "list_providers_api_providers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderOut"
+                  },
+                  "title": "Response List Providers Api Providers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Providers",
+        "tags": [
+          "providers"
+        ]
+      },
+      "post": {
+        "description": "Add a provider.\n\nThe row id is generated here rather than left to the column default because the\nvault's associated data binds the ciphertext to it — the id has to exist before the\nsecret can be sealed. See ``app/vault.py`` for why that binding is worth the\nawkwardness.",
+        "operationId": "create_provider_api_providers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Provider",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/providers/{provider_id}": {
+      "delete": {
+        "description": "Remove a provider. The wefts it answered stay, unbound.\n\nThe database's ON DELETE SET NULL does the unbinding. A weft with no engine is\nstill on the Pick menu with everything it owns, waiting for a new one.",
+        "operationId": "delete_provider_api_providers__provider_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Provider",
+        "tags": [
+          "providers"
+        ]
+      },
+      "patch": {
+        "description": "Edit a provider. Omitting ``secret`` leaves the stored token untouched.",
+        "operationId": "update_provider_api_providers__provider_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProviderOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Provider",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/providers/{provider_id}/models": {
+      "get": {
+        "description": "Fetch this provider's live model list, and say which wefts use which.\n\nThis is the only route in the service that opens a sealed secret, and the only one\nthat makes an outbound request. Both facts are worth keeping true: if a second\nroute needs either, that is the moment to ask whether it should go through here.",
+        "operationId": "list_models_api_providers__provider_id__models_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routes__providers__ModelsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/providers/{provider_id}/voices": {
+      "get": {
+        "description": "What a speech provider can say, and in whose voice.\n\nTwo upstream calls, because the OpenAI speech protocol splits them: ``/models`` names\nthe engine and ``/audio/voices`` names the voice, and ``/audio/speech`` wants both.",
+        "operationId": "list_voices_api_providers__provider_id__voices_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoicesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Voices",
+        "tags": [
+          "providers"
+        ]
+      }
+    },
+    "/api/session/head": {
+      "get": {
+        "description": "Where one weft's session ends, and nothing else.\n\nThe cheap question a window asks every few seconds while it is open: \"has another\ndevice added to this thread?\" It reads one row's summary in the store — no event,\nnothing decrypted — so polling it costs next to nothing at either end. When the\nanswer differs from what the window last read, the window asks /thread.",
+        "operationId": "read_head_api_session_head_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Head",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/session/thread": {
+      "get": {
+        "description": "The tail of one weft's session, as many turns as its window holds.\n\nWith ``after_seq``, a catch-up instead: only the messages after that seq, for a\nwindow that already holds the thread up to it. This is the read the window makes\nwhen /head says the session has moved on, and it is cheap where the tail is not:\nthe store decrypts every event it returns, so a long thread's tail costs tens of\nseconds and the two events a new exchange added cost milliseconds.\n\nA catch-up falls back to the tail (``full: true``) when it cannot be one: the\nsession ends before ``after_seq`` (it was replaced or cleared), or more happened\nsince than a catch-up reads.",
+        "operationId": "read_thread_api_session_thread_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "Weft Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after_seq",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After Seq"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThreadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Thread",
+        "tags": [
+          "session"
+        ]
+      }
+    },
+    "/api/speech": {
+      "post": {
+        "description": "Say one reply in the voice its thread was given.",
+        "operationId": "speak_api_speech_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speak",
+        "tags": [
+          "speech"
+        ]
+      }
+    },
+    "/api/stt": {
+      "get": {
+        "description": "The user's push-to-talk settings. The window asks on mount, to know whether to\nshow the 🎤 petal at all.",
+        "operationId": "get_settings_api_stt_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SttOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "stt"
+        ]
+      },
+      "put": {
+        "description": "Replace the user's push-to-talk settings.",
+        "operationId": "set_settings_api_stt_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SttIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SttOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Settings",
+        "tags": [
+          "stt"
+        ]
+      }
+    },
+    "/api/stt/models": {
+      "get": {
+        "description": "What a speech-to-text provider says it can run. Empty when it will not say: the\nuser can still type a model name, and many servers ignore it anyway.",
+        "operationId": "list_models_api_stt_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "maxLength": 36,
+              "minLength": 1,
+              "title": "Provider Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__routes__stt__ModelsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "stt"
+        ]
+      }
+    },
+    "/api/stt/transcribe": {
+      "post": {
+        "description": "Turn one recording into words, with the user's own provider.\n\nThe body is the recording itself, with the content type the browser recorded it in\n(``audio/webm`` from Chrome, ``audio/mp4`` from Safari).",
+        "operationId": "transcribe_api_stt_transcribe_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranscriptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Transcribe",
+        "tags": [
+          "stt"
+        ]
+      }
+    },
+    "/api/tips": {
+      "get": {
+        "description": "Every tip, in file order, and this account's progress through them.",
+        "operationId": "list_tips_api_tips_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Tips",
+        "tags": [
+          "tips"
+        ]
+      }
+    },
+    "/api/tips/done": {
+      "post": {
+        "description": "Mark tips finished. Unknown ids are ignored, and so is one already done.",
+        "operationId": "finish_tips_api_tips_done_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Finish Tips Api Tips Done Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Finish Tips",
+        "tags": [
+          "tips"
+        ]
+      }
+    },
+    "/api/tips/on": {
+      "put": {
+        "description": "Tips on or off, for this account on every device.",
+        "operationId": "switch_tips_api_tips_on_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Switch Tips Api Tips On Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Switch Tips",
+        "tags": [
+          "tips"
+        ]
+      }
+    },
+    "/api/tips/restart": {
+      "post": {
+        "description": "Start again. Restarting the help turns tips back on; forgetting finds does not.",
+        "operationId": "restart_tips_api_tips_restart_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TipsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restart Tips",
+        "tags": [
+          "tips"
+        ]
+      }
+    },
+    "/api/wefts": {
+      "get": {
+        "description": "Every weft this user has, by name. This is the Pick menu.\n\nReads no secrets and makes no outbound call, so opening the chat costs one indexed\nquery, not a round trip to every gateway the user has configured.",
+        "operationId": "list_wefts_api_wefts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WeftOut"
+                  },
+                  "title": "Response List Wefts Api Wefts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Wefts",
+        "tags": [
+          "wefts"
+        ]
+      },
+      "post": {
+        "description": "Add a weft by name. It is on the Pick menu from this moment, engine or not.",
+        "operationId": "create_weft_api_wefts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeftIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Weft",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/background/{digest}": {
+      "get": {
+        "description": "A background picture — only to someone with a weft wearing it.\n\nA picture that exists but is not the caller's gets the same 404 as one that does not\nexist, so the route cannot be used to ask whether somebody else has uploaded a given\nimage. Cacheable forever, privately: the name is the hash of the bytes.",
+        "operationId": "get_background_api_wefts_background__digest__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Digest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Background",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}": {
+      "delete": {
+        "description": "Delete a weft and everything it owns. The only route that can.\n\nIts picture goes too once nothing else wears it. A thread kept in a session store\nis not touched: that store is upstream, and its contents are not ours to delete.",
+        "operationId": "delete_weft_api_wefts__weft_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Weft",
+        "tags": [
+          "wefts"
+        ]
+      },
+      "get": {
+        "operationId": "get_weft_api_wefts__weft_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Weft",
+        "tags": [
+          "wefts"
+        ]
+      },
+      "patch": {
+        "description": "Rename a weft. Its thread stays put: the session id does not follow the name.",
+        "operationId": "rename_weft_api_wefts__weft_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeftPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Weft",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/background": {
+      "delete": {
+        "description": "Take this weft's picture away. The file goes too, once nothing else wears it.",
+        "operationId": "clear_background_api_wefts__weft_id__background_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Clear Background",
+        "tags": [
+          "wefts"
+        ]
+      },
+      "put": {
+        "description": "Give this weft a background picture, replacing any it had.\n\nThe body is the picture itself, not a form, so the size cap bites while it streams.\nThe content type must say it is an image — and SVG, which is one, is refused,\nbecause it is markup that can carry script. What is stored is never what was sent;\nsee app/backgrounds.py.",
+        "operationId": "set_background_api_wefts__weft_id__background_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Background",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/colours": {
+      "put": {
+        "description": "Set the pair of colours this weft wears, or clear it back to the theme's.\nStored lowercase, so \"#ABCDEF\" and \"#abcdef\" are the same colour twice.",
+        "operationId": "set_colours_api_wefts__weft_id__colours_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColoursIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Colours",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/door": {
+      "delete": {
+        "description": "Close this weft's door: its key stops working, and so do its upload addresses.",
+        "operationId": "close_door_api_wefts__weft_id__door_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Close Door",
+        "tags": [
+          "door"
+        ]
+      },
+      "get": {
+        "description": "Whether this weft's door is open, and since when.",
+        "operationId": "get_door_api_wefts__weft_id__door_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoorOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Door",
+        "tags": [
+          "door"
+        ]
+      },
+      "post": {
+        "description": "Mint this weft's key, replacing any it had. The old key stops working at once.",
+        "operationId": "open_door_api_wefts__weft_id__door_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DoorKeyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Open Door",
+        "tags": [
+          "door"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/door/invite": {
+      "post": {
+        "description": "A one-time address to hand the weft's agent in the chat.\n\nReading it mints the key and serves the guide, so the key itself never passes\nthrough the chat. Any invite this weft already had waiting stops working.",
+        "operationId": "invite_api_wefts__weft_id__door_invite_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Invite",
+        "tags": [
+          "door"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/engine": {
+      "put": {
+        "description": "Say which provider and model answer this weft, or that nothing does.\n\nEverything else about the weft stays as it was. That is the point of the shape: the\nsame weft on a new engine keeps its colours, voice, picture and thread.",
+        "operationId": "set_engine_api_wefts__weft_id__engine_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EngineIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Engine",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/headers": {
+      "put": {
+        "description": "Set the extra HTTP headers this weft sends with its chat requests.\n\nNot secrets, and treated as not secrets: they are shown back in the clear. The\nnames that carry a credential, or describe the request itself, are refused (see\n``upstream.RESERVED_HEADERS``), so a header can add to what Weft sends and never\nreplace it.",
+        "operationId": "set_headers_api_wefts__weft_id__headers_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeadersIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Headers",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/history": {
+      "put": {
+        "description": "Say how this weft is kept, how much is sent, and how much is held.\n\nSetting ``history`` to ``memory`` does NOT reach out and delete anything. The stored\ncopy lives in a browser this service cannot see — the client erases its own copy\nwhen it applies this.",
+        "operationId": "set_history_api_wefts__weft_id__history_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistoryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set History",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/voice": {
+      "put": {
+        "description": "Give this weft a voice, or clear it. All three fields or none.",
+        "operationId": "set_voice_api_wefts__weft_id__voice_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Voice",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Always 200, always cheap, never authenticated.\n\nCarries the degradation report so a misconfigured deploy is visible from a\ncurl instead of requiring a log dive. It deliberately exposes no counts,\nversions, or paths — an unauthenticated caller learns only which subsystems\nare up, which they would discover from a 503 anyway.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}

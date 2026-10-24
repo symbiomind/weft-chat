@@ -1,0 +1,46 @@
+---
+# Build from source. For working on weft-chat itself: the client and the tooling are
+# bind-mounted, so a UI edit is live on the next page refresh. To just run weft-chat,
+# use docker-compose.example.yml instead, which pulls the published image.
+#
+# Copy to docker-compose.yml and adjust. The real file is gitignored.
+
+services:
+  weft-chat:
+    build: .
+    image: weft-chat:local
+    container_name: weft-chat
+    user: "1000:1000"   # or whatever your uid:gid is — data/ is written as this user
+    ports:
+      # SECURITY, load-bearing: bind to loopback only.
+      #
+      # Every Secure-cookie and Origin decision in this service assumes the only
+      # thing that can reach this port is your reverse proxy, which terminates TLS
+      # and sets X-Forwarded-*. The day this becomes "5010:5010" for quick testing,
+      # those headers become attacker-controllable and the auth design stops holding.
+      # If you need direct access, use an SSH tunnel, not a published port.
+      - 127.0.0.1:5010:5010
+    restart: unless-stopped
+    env_file: .env
+    # environment:
+    #   TZ: Europe/London   # log timestamps on your wall clock; UTC if unset
+    volumes:
+      # Dev convenience: app code live-mounted so an edit needs only a restart, not a
+      # rebuild. The image still COPYs app/ so it stands alone in production — this
+      # mount just shadows it. Read-only, so __pycache__ is simply not written.
+      - ./app:/app/app:ro
+      - ./config.yml:/app/config.yml:ro   # service config (read-only)
+      - ./data:/app/data                  # sqlite db + bootstrap credential
+      - ./logs:/app/logs
+      - ./tests:/app/tests:ro             # bind-mounted: host edits visible without rebuild
+      - ./web:/app/web:ro                 # the static app: edit the UI without a rebuild
+      # Writable on purpose: `alembic revision --autogenerate` is run inside the
+      # container (that is where the dependencies live) and the new revision file has
+      # to land on the host to be committed.
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+      - ./scripts:/app/scripts:ro
+      # Writable: the OpenAPI spec is generated inside the container (that is where the
+      # dependencies live) and the golden file has to land on the host to be committed.
+      - ./docs:/app/docs

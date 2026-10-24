@@ -1,0 +1,68 @@
+# Pinned with major-version ceilings on 2026-09-13, at project start.
+#
+# WHY (honestly): this project has no incident history yet — the ceilings here are
+# prophylactic, not scar tissue. The sibling service (ind-bridge) learned this the
+# hard way when an unpinned `mcp` re-resolved to 2.0.0 on a --build and killed every
+# call site. Floors are what was current at project start; ceilings stop a future
+# --build from silently crossing a major boundary. Not exact pins on purpose — no
+# lockfile workflow here, so patches and minors should still flow.
+#
+# Each ceiling names the specific breaking change it is afraid of, so a future reader
+# can judge whether the fear still applies instead of cargo-culting the number.
+
+fastapi>=0.121,<1
+
+# [standard] IS the requirement, not a nicety: plain uvicorn ships no websockets
+# implementation, so /ws fails at the handshake with an error that reads like an
+# application bug rather than a missing dependency. We hold a socket per client.
+uvicorn[standard]>=0.38,<1
+
+# 1.4 -> 2.0 was the breaking style migration (select() semantics, DeclarativeBase,
+# Mapped[] annotations). We are writing 2.0-style from day one; the ceiling is there
+# so a --build never repeats that class of surprise.
+#
+# [asyncio] is the requirement, not a nicety: 2.1 stopped installing greenlet by
+# default, and without it the async engine refuses to import. A --build on 2026-10-04
+# resolved 2.1.3 and the service crash-looped on boot.
+sqlalchemy[asyncio]>=2.0,<3
+
+# Async DBAPI for sqlite. Swapped for asyncpg when the URL moves to postgres —
+# that swap is the whole point of going through SQLAlchemy in the first place.
+aiosqlite>=0.21,<1
+alembic>=1.14,<2
+
+# v1 -> v2 rewrote validators wholesale (@validator -> @field_validator, .dict() ->
+# .model_dump()). Ceiling is not optional.
+pydantic>=2.10,<3
+
+# We call decode() with algorithms=[...] passed explicitly and
+# options={"require": [...]}. PyJWT has changed decode defaults across majors before,
+# and every one of those changes was security-relevant.
+pyjwt>=2.10,<3
+
+# NOT passlib. passlib's last release was 2020 and its bcrypt backend breaks against
+# modern bcrypt; going straight to argon2-cffi's PasswordHasher removes the layer
+# that broke rather than pinning around it.
+argon2-cffi>=23.1,<26
+
+# AES-GCM for the provider-secret vault. Ships compiled Rust; major bumps have moved
+# backend APIs before.
+cryptography>=44,<47
+
+pyyaml>=6.0,<7
+
+# Background pictures: every upload is decoded and re-encoded, which is
+# what strips a phone photo's GPS and turns a hostile file into a clean refusal. Majors
+# have removed long-deprecated constants (ANTIALIAS went in 10); we use Resampling.*.
+pillow>=11,<13
+
+# The MCP door: FastMCP's streamable HTTP server. Same floor and ceiling
+# as ind-bridge, which learned the ceiling when 2.0.0 arrived on a --build and broke
+# every call site.
+mcp>=1.29,<2
+
+# Test client (ASGITransport) and, later, the outbound provider calls.
+httpx>=0.28,<1
+
+pytest>=8.3,<10
+pytest-asyncio>=0.24,<2
