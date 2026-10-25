@@ -40,6 +40,18 @@ export const ELIZA = Object.freeze({
 /** The hidden tip that finding her is (app/docs/tutorials/drawer-eliza.md). */
 export const ELIZA_TIP = "drawer/eliza";
 
+/**
+ * The second door to her: the status light's hidden tip leads to this one
+ * (app/docs/tutorials/chat-things.md). Found that and not her, and the wordmark
+ * glitches every time the drawer opens, until the tap that finds her.
+ */
+export const THINGS_TIP = "chat/things";
+
+/** Whether the wordmark should glitch, given what the account has found. */
+export function elizaBeckons(has) {
+  return has(THINGS_TIP) && !has(ELIZA_TIP);
+}
+
 const HIDDEN_KEY = "weft.eliza.hidden";
 
 /** Whether she has been taken out of the Pick menu on this device. */

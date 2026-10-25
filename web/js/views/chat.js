@@ -67,7 +67,9 @@ import { createSegmenter, forSpeech, speakableSegments } from "../segments.js";
 import { createSendShelf } from "../shelf.js";
 import { createTray } from "../tray.js";
 import { capabilitiesOf, icon } from "../icons.js";
-import { ELIZA, ELIZA_GREETING, ELIZA_TIP, answers, elizaHidden, hideEliza } from "../eliza.js";
+import {
+  ELIZA, ELIZA_GREETING, ELIZA_TIP, THINGS_TIP, answers, elizaBeckons, elizaHidden, hideEliza,
+} from "../eliza.js";
 import * as comfort from "../comfort.js";
 import { createPushToTalk } from "../ptt.js";
 import { createSpeaker } from "../speaker.js";
@@ -392,6 +394,9 @@ export function renderChat(root) {
 
   let healthStatus = "up";
 
+  /** The hidden tip a tap on the plain green light finds (app/docs/tutorials/chat-status.md). */
+  const STATUS_TIP = "chat/status";
+
   function showHealth(status) {
     healthStatus = status;
     paintLed();
@@ -415,8 +420,9 @@ export function renderChat(root) {
     const said = ringing ? `notifications waiting: tap to see who · ${words}` : words;
     led.title = said;
     led.setAttribute("aria-label", said);
-    // A light to read, until it is a bell to press.
-    if (ringing) {
+    // A light to read, until it is a bell to press. Plain green can be pressed too, for
+    // its hidden tip; amber and red are only lights.
+    if (ringing || healthStatus === "up") {
       led.setAttribute("role", "button");
       led.tabIndex = 0;
     } else {
@@ -426,7 +432,10 @@ export function renderChat(root) {
   }
 
   function onLed() {
-    if (!anyWaiting()) return;
+    if (!anyWaiting()) {
+      if (healthStatus === "up") tutor.find(STATUS_TIP);
+      return;
+    }
     if (!pickList.hidden && menuOnly === "waiting") closePickMenu();
     else openPickMenu({ only: "waiting" });
   }
@@ -560,6 +569,16 @@ export function renderChat(root) {
   showTheme();
 
   const scrim = el("div", { id: "scrim", "aria-hidden": "true" });
+  // A button, so a keyboard and a screen reader can find her too: she is meant to be
+  // easy to find.
+  const wordmark = el("button", {
+    type: "button", class: "wordmark", title: "someone has been here since 1966",
+    onclick: onWordmark,
+  }, [
+    document.createTextNode("w"),
+    el("em", { text: "e" }),
+    document.createTextNode("ft"),
+  ]);
   const drawerBody = el("div", { id: "drawer-body" });
   // A dialog while open, and inert while shut: slid off screen, it would otherwise still
   // be read out and tabbed through, every control in it, from behind the chat.
@@ -579,16 +598,7 @@ export function renderChat(root) {
     drawerBody,
     el("div", { id: "drawer-foot" }, [
       el("div", {}, [
-        // A button, so a keyboard and a screen reader can find her too: she is meant
-        // to be easy to find.
-        el("button", {
-          type: "button", class: "wordmark", title: "someone has been here since 1966",
-          onclick: onWordmark,
-        }, [
-          document.createTextNode("w"),
-          el("em", { text: "e" }),
-          document.createTextNode("ft"),
-        ]),
+        wordmark,
         el("div", {
           class: "slogan",
           text: "the window, not the platform — woven for the weave",
@@ -615,7 +625,8 @@ export function renderChat(root) {
     context: () => ({ wefts: wefts().length }),
     // Never over a reply being written, or over the Pick menu.
     canShow: () => !inFlight && pickList.hidden,
-    extras: (tip) => (tip.id === ELIZA_TIP ? elizaControls() : []),
+    extras: (tip) => (tip.id === ELIZA_TIP ? elizaControls()
+      : tip.id === THINGS_TIP ? askEliza() : []),
   });
   const unwatchPanels = panels.watch(() => tutor.visit());
 
@@ -657,6 +668,31 @@ export function renderChat(root) {
       showThread();
     }
     if (!pickList.hidden) buildPickMenu();
+  }
+
+  /** Under the "all things considered" card, once she is found: her question, and her. */
+  function askEliza() {
+    if (!tutor.has(ELIZA_TIP)) return [];
+    return [el("div", { class: "tip-extras" }, [
+      el("button", {
+        type: "button", class: "tip-quiet", text: "How does that make you feel?",
+        onclick: () => tutor.find(ELIZA_TIP),
+      }),
+    ])];
+  }
+
+  /**
+   * The wordmark glitches once the drawer has slid in (.28s), so it is seen. Calm and
+   * still motion get the e losing its colour for the same moment instead (app.css).
+   */
+  let glitchTimer = 0;
+  function glitchWordmark() {
+    clearTimeout(glitchTimer);
+    wordmark.classList.remove("glitch");
+    glitchTimer = setTimeout(() => {
+      wordmark.classList.add("glitch");
+      glitchTimer = setTimeout(() => wordmark.classList.remove("glitch"), 700);
+    }, 380);
   }
 
   /** The controls on her card: in place of a settings page, which she has no use for. */
@@ -875,6 +911,7 @@ export function renderChat(root) {
     // Into the dialog, as a panel does: a keyboard user should not be left on ☰.
     drawer.querySelector("#drawer-close")?.focus();
     tutor.visit();
+    if (elizaBeckons((id) => tutor.has(id))) glitchWordmark();
   }
 
   function closeDrawer() {
@@ -2208,6 +2245,7 @@ export function renderChat(root) {
     panels.popAll();
     unwatchPanels();
     tutor.teardown();
+    clearTimeout(glitchTimer);
     closePickMenu();
     document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("online", onNetworkChange);

@@ -289,6 +289,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 #stat-led.ringing .ic{width:20px; height:20px; fill:currentColor; stroke:currentColor;
   filter:drop-shadow(0 0 4px currentColor)}
 #stat-led.ringing:focus-visible{outline:2px solid var(--text); outline-offset:2px}
+#stat-led.green[role=button]:focus-visible{outline:2px solid var(--text); outline-offset:3px}
 .ringing .ic, .pick-bell .ic{transform-origin:50% 12%; animation:bell-ring 2.4s ease-in-out infinite}
 @keyframes bell-ring{
   0%, 45%, 100%{transform:scale(1) rotate(0)}
@@ -502,6 +503,19 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 /* One tap meets ELIZA (js/eliza.js). The pointer is the only tell. */
 #drawer-foot .wordmark{cursor:pointer}
 #drawer-foot .wordmark em{font-style:normal; color:var(--fern)}
+/* Something shifted (js/eliza.js, elizaBeckons). Once per opening, .6s, small: torn
+   into slices and split into two colours, then back as if nothing happened. */
+#drawer-foot .wordmark.glitch{animation:wordmark-glitch .6s steps(1, end) 1}
+@keyframes wordmark-glitch{
+  0%{transform:translate(-2px, 0); text-shadow:2px 0 #ff3b6b, -2px 0 #3bd8ff; clip-path:inset(8% 0 52% 0)}
+  12%{transform:translate(2px, -1px); text-shadow:-2px 0 #ff3b6b, 2px 0 #3bd8ff; clip-path:inset(58% 0 4% 0)}
+  24%{transform:translate(-1px, 1px); text-shadow:1px 0 #ff3b6b, -1px 0 #3bd8ff; clip-path:inset(28% 0 30% 0)}
+  36%{transform:none; text-shadow:none; clip-path:none}
+  58%{transform:translate(3px, 0) skewX(-10deg); text-shadow:-3px 0 #ff3b6b, 3px 0 #3bd8ff; clip-path:inset(0 0 66% 0)}
+  68%{transform:translate(-3px, 0); text-shadow:3px 0 #ff3b6b, -3px 0 #3bd8ff; clip-path:inset(70% 0 0 0)}
+  80%{transform:translate(1px, 0); text-shadow:-1px 0 #ff3b6b, 1px 0 #3bd8ff; clip-path:none}
+  100%{transform:none; text-shadow:none; clip-path:none}
+}
 #drawer-foot .links{margin-left:auto; display:flex; gap:12px}
 #drawer-foot a{color:var(--dim); font-size:13px; text-decoration:none; padding:4px 6px; border-radius:6px}
 #drawer-foot a:hover{color:var(--text); background:var(--in)}
@@ -1179,7 +1193,12 @@ button.row.pick-speaker:hover{border-color:var(--fern)}
 .tip-body code{font-size:.85em; background:var(--in); border:1px solid var(--inedge);
   border-radius:5px; padding:0 4px}
 .tip-body a{color:var(--fern)}
-.tip-or{font-size:.78rem; color:var(--dim); margin:10px 0 0}
+/* A link to a hidden tip is not a link to look at: the words, underlined, and no more. */
+.tip-body a[data-tip]{color:inherit; text-decoration:underline; text-decoration-thickness:1px;
+  text-underline-offset:3px}
+.tip-quiet{align-self:flex-start; background:none; border:0; padding:0; color:inherit; font:inherit;
+  font-size:.88rem; cursor:pointer; text-decoration:underline; text-decoration-thickness:1px;
+  text-underline-offset:3px}.tip-or{font-size:.78rem; color:var(--dim); margin:10px 0 0}
 /* the controls a few tips carry under their words (ELIZA's card) */
 .tip-extras{display:flex; flex-direction:column; gap:8px; margin-top:12px}
 .tip-actions{display:flex; align-items:center; gap:12px; margin-top:12px}
@@ -1259,6 +1278,8 @@ button.row.pick-speaker:hover{border-color:var(--fern)}
 }
 /* the shelf's petals fade in where they stand, without the spring */
 :root:is([data-motion=calm], [data-motion=still]) #send-shelf .petal{transform:none}
+/* the wordmark's glitch: the e loses its colour for the moment instead */
+:root:is([data-motion=calm], [data-motion=still]) #drawer-foot .wordmark.glitch em{color:var(--text)}
 /* the send hint stops bobbing, at the colour it rests at */
 :root:is([data-motion=calm], [data-motion=still]) #send .hint{opacity:.55}
 

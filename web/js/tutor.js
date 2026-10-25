@@ -106,7 +106,10 @@ export function createTutor({ user, where, context, canShow, extras = () => [] }
     if (link) {
       event.preventDefault();
       const tip = tips.get(link.dataset.tip);
-      if (tip) show(tip, true);
+      if (!tip) return;
+      // A hidden tip at the end of a link is found by following it.
+      if (tip.group === "secret") tips.finish(tip.id);
+      show(tip, true);
       return;
     }
     const act = event.target.closest("[data-act]")?.dataset.act;

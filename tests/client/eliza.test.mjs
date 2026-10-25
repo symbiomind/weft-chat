@@ -6,7 +6,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { ELIZA, answers, elizaHidden, hideEliza } from "../../web/js/eliza.js";
+import {
+  ELIZA, ELIZA_TIP, THINGS_TIP, answers, elizaBeckons, elizaHidden, hideEliza,
+} from "../../web/js/eliza.js";
 
 function memoryStorage() {
   const map = new Map();
@@ -64,5 +66,22 @@ describe("her thread", () => {
 
   it("is silent", () => {
     assert.equal(ELIZA.has_voice, false);
+  });
+});
+
+describe("the wordmark's glitch", () => {
+  const found = (...ids) => (id) => ids.includes(id);
+
+  it("waits until the second door has been found", () => {
+    assert.equal(elizaBeckons(found()), false);
+  });
+
+  it("beckons while that door is found and she is not", () => {
+    assert.equal(elizaBeckons(found(THINGS_TIP)), true);
+  });
+
+  it("stops for good once she is found, whichever way", () => {
+    assert.equal(elizaBeckons(found(THINGS_TIP, ELIZA_TIP)), false);
+    assert.equal(elizaBeckons(found(ELIZA_TIP)), false);
   });
 });

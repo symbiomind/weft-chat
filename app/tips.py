@@ -66,6 +66,9 @@ EVENTS = {f"open:{page}" for page in PAGES} | {
     # Never sent: the wordmark finds ELIZA's tip directly (tutor.find). Named so her
     # tip waits for it, rather than showing by itself when the drawer opens.
     "eliza-found",
+    # Never sent either: the status light finds its tip directly, and that tip's link
+    # finds the next.
+    "status-found",
 }
 
 #: When a tip applies at all. A tip that does not apply counts as done for anything
