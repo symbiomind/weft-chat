@@ -167,13 +167,19 @@ def _parse_models(payload: object) -> list[dict[str, str]]:
     return models
 
 
-async def fetch_models(base_url: str, secret: str) -> list[dict[str, str]]:
+async def fetch_models(
+    base_url: str, secret: str, *, output_modalities: str | None = None
+) -> list[dict[str, str]]:
     """GET ``{base_url}/models`` as this provider's owner, and return what it lists.
 
     Sorted by id, because the upstream order is arbitrary and a list that reshuffles
     between visits is miserable to pick from.
+
+    ``output_modalities`` is OpenRouter's filter, passed as a query parameter when
+    given. See ``fetch_speech_models``.
     """
     url = models_url(base_url)
+    params = {"output_modalities": output_modalities} if output_modalities else None
 
     try:
         async with httpx.AsyncClient(
@@ -182,7 +188,7 @@ async def fetch_models(base_url: str, secret: str) -> list[dict[str, str]]:
             # user did not name, carrying their bearer token with it.
             follow_redirects=False,
         ) as client:
-            response = await client.get(url, headers=_auth_headers(secret))
+            response = await client.get(url, params=params, headers=_auth_headers(secret))
     except httpx.TimeoutException as exc:
         raise UpstreamError(f"{base_url} did not answer within {TIMEOUT_SECONDS:.0f}s.") from exc
     except httpx.RequestError as exc:
@@ -222,6 +228,22 @@ async def fetch_models(base_url: str, secret: str) -> list[dict[str, str]]:
     models = _parse_models(payload)
     models.sort(key=lambda row: row["id"].lower())
     return models
+
+
+async def fetch_speech_models(base_url: str, secret: str) -> list[dict[str, str]]:
+    """The models a speech provider can speak with.
+
+    OpenRouter's plain ``/models`` lists only its chat models, hundreds of them, and none
+    of the speech ones; those appear only when asked for with
+    ``?output_modalities=speech``. Every other server seen so far ignores the parameter
+    and answers its usual list, so it is always sent. A server that refuses it, or
+    answers with nothing, is asked again without it.
+    """
+    try:
+        models = await fetch_models(base_url, secret, output_modalities="speech")
+    except UpstreamError:
+        models = []
+    return models or await fetch_models(base_url, secret)
 
 
 # ---------------------------------------------------------------------------

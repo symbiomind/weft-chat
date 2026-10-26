@@ -121,6 +121,27 @@ export function sendOptionValues(turns) {
 }
 
 /**
+ * What the voice form starts with, once a speech provider has said what it offers.
+ *
+ * `saved` is the weft's voice when the provider is the one it already speaks through,
+ * and null otherwise. Opening the form on the current provider shows what is there, so
+ * pressing save without touching anything changes nothing.
+ *
+ * For a provider the weft does not use yet, the model is a guess only when the guess
+ * is safe: `kokoro` where it is offered, or the only model there is. Otherwise it is left
+ * blank. The list used to be sorted and its first entry taken, which put Kokoro's alias
+ * `gpt-4o-mini-tts` on every weft and one of OpenRouter's chat presets in the speech
+ * model box. A blank box that asks is better than a filled one that is wrong.
+ */
+export function startingVoice({ models, voices }, saved) {
+  if (saved) return { model: saved.model, voice: saved.voice };
+  let model = "";
+  if (models.includes("kokoro")) model = "kokoro";
+  else if (models.length === 1) model = models[0];
+  return { model, voice: voices[0] ?? "" };
+}
+
+/**
  * `weft` is the weft as the server last described it. `onChanged(weft)` fires after
  * every save with what the server stored, so the Pick menu and the Wefts list can follow;
  * `onDeleted(weft)` after the weft is gone; `onClearHistory(weft)` asks the chat view to
@@ -1299,9 +1320,21 @@ export function renderWeft(panels, {
     onclick: () => save({ ttsProviderId: null, ttsModel: null, ttsVoice: null }),
   });
 
+  /** The provider this weft speaks through, once load() has the list. */
+  function currentSpeaker() {
+    if (!weft.has_voice) return null;
+    return speechProviders.find((p) => p.id === weft.tts_provider_id) ?? null;
+  }
+
+  /** "af_heart on kokoro, model kokoro": the whole voice, provider included. */
+  function voiceDescription() {
+    const where = currentSpeaker() ? ` on ${currentSpeaker().name}` : "";
+    return `${weft.tts_voice}${where}, model ${weft.tts_model}`;
+  }
+
   function paintVoice() {
     voiceNow.textContent = weft.has_voice
-      ? `Speaks as ${weft.tts_voice} (${weft.tts_model}). Choose a speech provider below to change it.`
+      ? `Speaks as ${voiceDescription()}. Choose a speech provider below to change it.`
       : "Silent. Choose a speech provider below to give it a voice.";
     silence.hidden = !weft.has_voice;
   }
@@ -1355,25 +1388,51 @@ export function renderWeft(panels, {
     clearError();
     status.textContent = "Asking that provider what it can say…";
 
+    // What is already there, when this is the provider the weft speaks through.
+    const saved = currentSpeaker()?.id === speechProvider.id
+      ? { model: weft.tts_model, voice: weft.tts_voice }
+      : null;
+
+    // A text field with suggestions rather than a dropdown: a provider's list is a
+    // help, not the whole truth, and some servers list nothing at all.
+    const modelList = el("datalist", { id: "voice-model-list" });
     const modelField = el("input", {
-      type: "text", id: "voice-model", autocomplete: "off",
+      type: "text", id: "voice-model", list: "voice-model-list", autocomplete: "off",
       autocapitalize: "none", spellcheck: "false", placeholder: "kokoro",
     });
+    modelField.value = saved?.model ?? "";
     const voiceSelect = el("select", { id: "voice-name" });
     const voiceField = el("input", {
       type: "text", id: "voice-name-text", autocomplete: "off",
       autocapitalize: "none", spellcheck: "false", placeholder: "af_bella", hidden: "",
     });
+    voiceField.value = saved?.voice ?? "";
 
     const submit = el("button", { type: "submit", text: "give it this voice" });
+    const back = el("button", {
+      class: "small", type: "button", text: "cancel",
+      onclick: () => {
+        clearError();
+        renderChooser();
+      },
+    });
+
+    // Saving here replaces the voice there is. Say so, unless it is that voice being
+    // opened again.
+    const replaces = weft.has_voice && !saved
+      ? [el("p", { class: "hint", text: `This replaces ${voiceDescription()}.` })]
+      : [];
 
     const form = el("form", {}, [
       el("label", { for: "voice-model", text: "speech model" }),
       modelField,
+      modelList,
       el("label", { for: "voice-name", text: "voice" }),
       voiceSelect,
       voiceField,
+      ...replaces,
       submit,
+      el("div", { class: "row-confirm" }, [back]),
     ]);
 
     form.addEventListener("submit", (event) => {
@@ -1399,22 +1458,32 @@ export function renderWeft(panels, {
     api.listVoices(speechProvider.id).then((info) => {
       status.textContent = "";
 
-      if (info.models.length > 0) modelField.value = info.models[0];
+      for (const id of info.models) modelList.append(el("option", { value: id }));
+      const start = startingVoice(info, saved);
+      // Something typed while the provider was answering wins over the guess.
+      if (!modelField.value) modelField.value = start.model;
 
       if (info.voices.length === 0) {
-        // No /audio/voices. Not an error — OpenAI has none either.
+        // No /audio/voices. Not an error — OpenAI and OpenRouter have none either.
         voiceSelect.hidden = true;
         voiceField.hidden = false;
+        if (!voiceField.value) voiceField.value = start.voice;
         status.textContent =
-          `${speechProvider.name} does not list its voices, so type one in. ` +
-          `OpenAI's are alloy, echo, fable, onyx, nova and shimmer.`;
+          `${speechProvider.name} does not list its voices, so type one in: ` +
+          `the voice name from its documentation.`;
         return;
       }
 
       voiceSelect.replaceChildren();
-      for (const voice of info.voices) {
+      // A saved voice the provider no longer lists stays on offer, so opening the form
+      // cannot quietly swap it for the first voice in the list.
+      const offered = info.voices.includes(start.voice)
+        ? info.voices
+        : [start.voice, ...info.voices].filter(Boolean);
+      for (const voice of offered) {
         voiceSelect.append(el("option", { value: voice, text: voice }));
       }
+      voiceSelect.value = start.voice;
       status.textContent = `${info.voices.length} voices.`;
     }).catch((err) => {
       status.textContent = "";
@@ -1446,13 +1515,16 @@ export function renderWeft(panels, {
     status.textContent = "Which speech provider should say this one?";
     const rows = el("div", { class: "rows" });
     for (const speechProvider of speechProviders) {
+      const isCurrent = currentSpeaker()?.id === speechProvider.id;
+      const name = el("div", { class: "row-name", text: speechProvider.name });
+      if (isCurrent) name.append(el("span", { class: "acct-badge", text: "current" }));
       rows.append(
         el("button", {
-          class: "row pick-speaker",
+          class: isCurrent ? "row pick-speaker current" : "row pick-speaker",
           onclick: () => renderFor(speechProvider),
         }, [
           el("div", { class: "row-main" }, [
-            el("div", { class: "row-name", text: speechProvider.name }),
+            name,
             el("div", { class: "row-sub", text: speechProvider.base_url }),
           ]),
         ]),
@@ -1468,6 +1540,8 @@ export function renderWeft(panels, {
       stores = providers.filter((p) => p.kind === "session");
       offerChatProviders(providers.filter((p) => p.kind === "llm"));
       offerStores();
+      // Again, now the provider's name is known.
+      paintVoice();
       renderChooser();
     } catch (err) {
       status.textContent = "";

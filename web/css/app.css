@@ -1057,6 +1057,8 @@ button.row.pick-speaker{
   background:var(--panel); color:var(--text);
 }
 button.row.pick-speaker:hover{border-color:var(--fern)}
+/* the provider this weft already speaks through */
+button.row.pick-speaker.current{border-color:color-mix(in srgb, var(--fern) 55%, transparent)}
 
 .panel-form select{
   width:100%; padding:11px 13px; margin-top:4px;

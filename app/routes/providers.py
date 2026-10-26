@@ -450,7 +450,9 @@ async def list_models(
 class VoicesOut(BaseModel):
     provider_id: str
     provider_name: str
-    #: The speech models this endpoint offers, from /models. Usually one ("kokoro").
+    #: The speech models this endpoint offers, from /models. Kokoro lists four names
+    #: for the same engine; OpenRouter lists its speech models only when asked for
+    #: them, which ``upstream.fetch_speech_models`` does.
     models: list[str]
     #: From /audio/voices. EMPTY IS NOT AN ERROR — OpenAI itself has no voices endpoint,
     #: so a client that gets an empty list offers a text field instead of a dropdown
@@ -480,7 +482,9 @@ async def list_voices(
     secret = _open_or_500(provider, user)
 
     try:
-        models = [row["id"] for row in await upstream.fetch_models(provider.base_url, secret)]
+        models = [
+            row["id"] for row in await upstream.fetch_speech_models(provider.base_url, secret)
+        ]
     except upstream.UpstreamError:
         # A speech server that will not enumerate its models is still usable — the user
         # types the model name. Refusing here would make a working provider

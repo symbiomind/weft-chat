@@ -273,6 +273,65 @@ async def test_stream_chat_sends_extra_headers_beside_the_bearer(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# Speech models
+# ---------------------------------------------------------------------------
+
+def models_server(monkeypatch, answer):
+    """Answer /models with `answer(request)`. Returns the requests seen."""
+    import httpx
+
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        return answer(request)
+
+    real = httpx.AsyncClient
+    monkeypatch.setattr(
+        upstream.httpx, "AsyncClient",
+        lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
+    )
+    return seen
+
+
+@pytest.mark.asyncio
+async def test_speech_models_are_asked_for_by_modality(monkeypatch):
+    """OpenRouter keeps its speech models out of the plain list."""
+    import httpx
+
+    def answer(request):
+        if request.url.params.get("output_modalities") == "speech":
+            return httpx.Response(200, json={"data": [{"id": "elevenlabs/eleven-v3"}]})
+        return httpx.Response(200, json={"data": [{"id": "@preset/chat-only"}]})
+
+    seen = models_server(monkeypatch, answer)
+
+    models = await upstream.fetch_speech_models("http://or.test/v1", "sk")
+    assert [m["id"] for m in models] == ["elevenlabs/eleven-v3"]
+    assert len(seen) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filtered", [
+    lambda httpx: httpx.Response(400, json={"error": "unknown parameter"}),
+    lambda httpx: httpx.Response(200, json={"data": []}),
+])
+async def test_speech_models_fall_back_to_the_plain_list(monkeypatch, filtered):
+    import httpx
+
+    def answer(request):
+        if "output_modalities" in request.url.params:
+            return filtered(httpx)
+        return httpx.Response(200, json={"data": [{"id": "kokoro"}]})
+
+    seen = models_server(monkeypatch, answer)
+
+    models = await upstream.fetch_speech_models("http://k.test/v1", "sk")
+    assert [m["id"] for m in models] == ["kokoro"]
+    assert len(seen) == 2
+
+
+# ---------------------------------------------------------------------------
 # Speech retries
 # ---------------------------------------------------------------------------
 
