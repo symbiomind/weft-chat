@@ -163,9 +163,15 @@ export function createSegmenter({ softMax = 400 } = {}) {
  * `[voice:zm_yunjian]` tags live, and stripping them would silently remove a feature.
  * The one exception is a whole markdown image, `![name](address)`: the leading `!` and
  * the address make it unmistakable, and its address read aloud is pure noise.
+ *
+ * A segment with no letters or digits left — a sign-off emoji, a `---` rule, a lone
+ * `…` — comes back empty, so it is never sent. There is nothing in it to say, and
+ * speech servers refuse it in their own ways: Kokoro answers 200 with no audio,
+ * OpenRouter a 400 or a 502. Each of those used to surface as an error under a reply
+ * that had in fact been read out in full.
  */
 export function forSpeech(segment) {
-  return segment
+  const spoken = segment
     // Whole fenced blocks, including the fence markers and the language tag.
     .replace(/```[\s\S]*?```/g, " ")
     // Leftover opening fence, for a segment that ended mid-block.
@@ -185,6 +191,12 @@ export function forSpeech(segment) {
     .replace(/^\s{0,3}[-*+]\s+/gm, "")
     .replace(/\s+/g, " ")
     .trim();
+  return hasWords(spoken) ? spoken : "";
+}
+
+/** Whether there is anything in this text a voice could say. */
+export function hasWords(text) {
+  return /[\p{L}\p{N}]/u.test(text);
 }
 
 /**

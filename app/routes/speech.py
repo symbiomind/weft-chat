@@ -71,6 +71,15 @@ async def speak(
     """Say one reply in the voice its thread was given."""
     weft = await owned_weft(session, user, body.weft_id)
 
+    if not any(ch.isalnum() for ch in body.text):
+        # A sign-off emoji or a `---` on its own. The client no longer sends these, but
+        # one that does would otherwise buy an error: Kokoro answers them with no
+        # audio, OpenRouter with a 400 or a 502, and a 502 is asked twice.
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="There are no words in that to say.",
+        )
+
     if not weft.speaks():
         # 409 rather than 404: the thread exists, it simply has nothing to say things
         # with. The client checks `has_voice` before calling, so reaching this means the

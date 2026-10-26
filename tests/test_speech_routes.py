@@ -72,7 +72,7 @@ def stub_voices(monkeypatch):
         return [{"id": "kokoro", "owned_by": ""}]
 
     monkeypatch.setattr(upstream, "fetch_voices", fake_voices)
-    monkeypatch.setattr(upstream, "fetch_models", fake_models)
+    monkeypatch.setattr(upstream, "fetch_speech_models", fake_models)
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ async def test_an_endpoint_with_no_voices_list_is_still_usable(csrf_client, sess
         raise upstream.UpstreamError("nope")
 
     monkeypatch.setattr(upstream, "fetch_voices", none_at_all)
-    monkeypatch.setattr(upstream, "fetch_models", no_models)
+    monkeypatch.setattr(upstream, "fetch_speech_models", no_models)
 
     response = await csrf_client.get(f"/api/providers/{speech_id}/voices")
 
@@ -312,6 +312,22 @@ async def test_a_thread_with_no_voice_is_a_409(csrf_client, session, stub_speak)
     })
 
     assert response.status_code == 409
+    assert stub_speak == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("text", ["💜", "---", "…", "  * "])
+async def test_text_with_no_words_is_refused_before_anyone_is_asked(
+    csrf_client, session, stub_speak, text
+):
+    """Speech servers answer these with silence or an error, and a 502 is retried."""
+    weft_id = await with_a_pick(csrf_client, session)
+    speech_id = (await add_speech_provider(csrf_client)).json()["id"]
+    await give_it_a_voice(csrf_client, weft_id, speech_id)
+
+    response = await csrf_client.post("/api/speech", json={"weft_id": weft_id, "text": text})
+
+    assert response.status_code == 422
     assert stub_speak == []
 
 

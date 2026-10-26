@@ -144,6 +144,14 @@ describe("the same cuts however the text arrives", () => {
   it("speakableSegments drops a segment with nothing left to say", () => {
     assert.deepEqual(speakableSegments("Hi.\n\n```\ncode\n```\n\nBye."), ["Hi.", "Bye."]);
   });
+
+  it("speakableSegments drops a closing line with no words in it", () => {
+    // Speech servers answer these with no audio or an error, after the reply itself
+    // was read out in full.
+    for (const tail of ["💜", "🌙✨", "---", "…", "*", "(:"]) {
+      assert.deepEqual(speakableSegments(`All done.\n\n${tail}`), ["All done."], tail);
+    }
+  });
 });
 
 describe("code fences", () => {
@@ -230,5 +238,16 @@ describe("forSpeech", () => {
 
   it("collapses whitespace so a clip does not start with a pause", () => {
     assert.equal(forSpeech("  lots\n\n   of   space  "), "lots of space");
+  });
+
+  it("comes back empty when nothing is left to say", () => {
+    assert.equal(forSpeech("💜"), "");
+    assert.equal(forSpeech("— … —"), "");
+  });
+
+  it("keeps an emoji beside words, and a bare number", () => {
+    assert.equal(forSpeech("Night night 💜"), "Night night 💜");
+    assert.equal(forSpeech("42."), "42.");
+    assert.equal(forSpeech("Ça va?"), "Ça va?");
   });
 });
