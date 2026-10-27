@@ -179,6 +179,7 @@ export function panelHead(panels, { title, sub }) {
 
 /** What each screen is for: the drawer's line under its name, and the screen's own. */
 export const PURPOSE = {
+  notifications: "what your wefts left while you were away",
   account: "password · devices · sign out",
   wefts: "thread a new one, dress the ones you have",
   providers: "engines · speech · sessions · talk",

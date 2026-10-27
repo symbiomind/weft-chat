@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 TIPS_DIR = Path(__file__).parent / "docs" / "tutorials"
 
 #: Where a tip can show. The client names the same screens when it reports a visit.
-PAGES = {"chat", "drawer", "providers", "wefts", "weft", "account", "about"}
+PAGES = {"chat", "drawer", "providers", "wefts", "weft", "account", "about", "notifications"}
 
 GROUPS = {"core", "advanced", "secret"}
 

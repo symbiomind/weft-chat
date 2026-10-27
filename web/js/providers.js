@@ -178,17 +178,19 @@ export function notificationCounts() {
   return apiFetch(`${NOTIFICATIONS}/counts`);
 }
 
-/** One weft's notifications, newest first: `[{id, weft_id, title, body, created_at}]`. */
-export function listNotifications(weftId) {
-  return apiFetch(`${NOTIFICATIONS}?weft=${encodeURIComponent(weftId)}`);
+/** Every weft's notifications, newest first: `[{id, weft_id, title, body, created_at}]`.
+ *  With a weft id, only that weft's. */
+export function listNotifications(weftId = null) {
+  return apiFetch(weftId ? `${NOTIFICATIONS}?weft=${encodeURIComponent(weftId)}` : NOTIFICATIONS);
 }
 
 export function dismissNotification(id) {
   return apiFetch(`${NOTIFICATIONS}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export function dismissAllNotifications(weftId) {
-  return apiFetch(`${NOTIFICATIONS}/dismiss`, jsonBody("POST", { weft_id: weftId }));
+/** Dismiss every one waiting, or with a weft id only that weft's. */
+export function dismissAllNotifications(weftId = null) {
+  return apiFetch(`${NOTIFICATIONS}/dismiss`, jsonBody("POST", weftId ? { weft_id: weftId } : {}));
 }
 
 /**

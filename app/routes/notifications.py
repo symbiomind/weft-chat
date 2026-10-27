@@ -4,7 +4,7 @@ read and dismiss. They arrive through the MCP door's ``notify`` tool; see
 ``app/notifications.py``.
 
 The counts are what the window polls, so they are the cheap one: one grouped count,
-nothing else. The list is read only when the user opens a weft's notifications.
+nothing else. The list is read only when the user opens the notifications page.
 """
 
 from datetime import datetime
@@ -39,7 +39,8 @@ class NotificationOut(BaseModel):
 
 
 class DismissAllIn(BaseModel):
-    weft_id: str
+    #: Only this weft's. Left out, every weft's.
+    weft_id: str | None = None
 
 
 @router.get("/counts", response_model=CountsOut)
@@ -53,17 +54,17 @@ async def counts(
 
 @router.get("", response_model=list[NotificationOut])
 async def list_notifications(
-    weft: str = Query(..., description="The weft whose notifications to list."),
+    weft: str | None = Query(None, description="Only this weft's. Left out, every weft's."),
     user: User = Depends(deps.active_user),
     session: AsyncSession = Depends(db.get_session),
 ) -> list[NotificationOut]:
-    """One weft's waiting notifications, newest first."""
-    found = await owned_weft(session, user, weft)
+    """The waiting notifications, newest first: every weft's, or one weft's."""
+    weft_id = (await owned_weft(session, user, weft)).id if weft is not None else None
     return [
         NotificationOut(
             id=n.id, weft_id=n.weft_id, title=n.title, body=n.body, created_at=n.created_at,
         )
-        for n in await notifications.of_weft(session, user.id, found.id)
+        for n in await notifications.of_user(session, user.id, weft_id)
     ]
 
 
@@ -84,6 +85,6 @@ async def dismiss_all(
     user: User = Depends(deps.active_user),
     session: AsyncSession = Depends(db.get_session),
 ) -> dict:
-    """Dismiss every notification one weft has waiting."""
-    weft = await owned_weft(session, user, body.weft_id)
-    return {"dismissed": await notifications.dismiss_all(session, user.id, weft.id)}
+    """Dismiss every notification waiting: every weft's, or one weft's."""
+    weft_id = (await owned_weft(session, user, body.weft_id)).id if body.weft_id else None
+    return {"dismissed": await notifications.dismiss_all(session, user.id, weft_id)}

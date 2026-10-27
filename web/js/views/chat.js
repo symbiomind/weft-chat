@@ -410,14 +410,15 @@ export function renderChat(root) {
    * The LED says two things now. Its colour is still the service's health; with
    * notifications waiting it is drawn as a bell in that colour. A red
    * bell is a bell the window cannot refresh, so the colour is never given up for the
-   * shape. No count on it: it says somebody has news, and the Pick menu says who.
+   * shape. No count on it: it says somebody has news, read at arm's length; the
+   * notifications page behind it says who, and the drawer's entry says how many.
    */
   function paintLed() {
     const [colour, words] = LED_STATES[healthStatus] ?? LED_STATES.down;
     const ringing = anyWaiting();
     led.className = ringing ? `${colour} ringing` : colour;
     led.replaceChildren(...(ringing ? [icon("bell")] : []));
-    const said = ringing ? `notifications waiting: tap to see who · ${words}` : words;
+    const said = ringing ? `notifications waiting: tap to read them · ${words}` : words;
     led.title = said;
     led.setAttribute("aria-label", said);
     // A light to read, until it is a bell to press. Plain green can be pressed too, for
@@ -436,8 +437,7 @@ export function renderChat(root) {
       if (healthStatus === "up") tutor.find(STATUS_TIP);
       return;
     }
-    if (!pickList.hidden && menuOnly === "waiting") closePickMenu();
-    else openPickMenu({ only: "waiting" });
+    if (panels.topPage() !== "notifications") openNotifications();
   }
   led.addEventListener("click", onLed);
   led.addEventListener("keydown", (event) => {
@@ -857,11 +857,11 @@ export function renderChat(root) {
       ? "no wefts yet"
       : `${count} weft${count === 1 ? "" : "s"} woven`;
 
-    function screen(title, purpose, open) {
+    function screen(title, purpose, open, badge = null) {
       return el("button", {
         type: "button", class: "chunk big", "data-screen": title.toLowerCase(), onclick: open,
       }, [
-        el("span", { text: title }),
+        el("span", {}, [document.createTextNode(title), ...(badge ? [badge] : [])]),
         el("em", { text: purpose }),
       ]);
     }
@@ -879,6 +879,8 @@ export function renderChat(root) {
           onclick: () => logout(),
         }),
       }),
+      // Always here, even before any weft can send: it is how anyone learns they can.
+      screen("Notifications", panels.PURPOSE.notifications, openNotifications, waitingBadge()),
       screen("Account", panels.PURPOSE.account, openAccount),
       el("div", { class: "drawer-rule" }),
       screen("Wefts", panels.PURPOSE.wefts, openWefts),
@@ -972,15 +974,10 @@ export function renderChat(root) {
   }
 
   function onDocumentClick(event) {
-    // The LED toggles the menu itself; closing it here first would make every tap an open.
-    if (!pick.contains(event.target) && !led.contains(event.target)) closePickMenu();
+    if (!pick.contains(event.target)) closePickMenu();
   }
 
-  /** What the menu is showing: every weft, or ("waiting") only those with news. */
-  let menuOnly = null;
-
-  function openPickMenu({ only = null } = {}) {
-    menuOnly = only;
+  function openPickMenu() {
     buildPickMenu();
     pickList.hidden = false;
     pickButton.setAttribute("aria-expanded", "true");
@@ -1009,12 +1006,7 @@ export function renderChat(root) {
       return;
     }
 
-    // From the LED's bell: only the wefts with news, where they sit in the list. Once
-    // there are none (all dismissed), it is simply the menu again.
-    const ringing = picks.filter((p) => waiting[p.id] > 0);
-    const filtered = menuOnly === "waiting" && ringing.length > 0;
-
-    for (const entry of filtered ? ringing : picks) {
+    for (const entry of picks) {
       const isCurrent = threadKey(current) === threadKey(entry);
       const bound = answers(entry);
       const count = waiting[entry.id] ?? 0;
@@ -1024,13 +1016,15 @@ export function renderChat(root) {
         role: "option",
         "aria-selected": isCurrent ? "true" : "false",
         tabindex: "0",
-        title: entry.builtin ? "ELIZA, 1966: no engine needed"
-          : bound ? `${entry.model_id} on ${entry.provider_name}` : "no engine yet",
+        title: (entry.builtin ? "ELIZA, 1966: no engine needed"
+          : bound ? `${entry.model_id} on ${entry.provider_name}` : "no engine yet")
+          + (count ? ` · ${waitingWords(count)}` : ""),
         onclick: () => choose(entry),
       }, [
-        // With news, the pea is the bell beside the option instead (see below).
-        ...(count ? [] : [el("span", { class: "led" })]),
+        el("span", { class: "led" }),
         el("span", { class: "pick-name", text: entry.name }),
+        // The ring around the pea is only seen; this says it.
+        ...(count ? [el("span", { class: "sr-only", text: waitingWords(count) })] : []),
         capsOf(entry),
       ]);
       // A sibling of the option, not a child: a button inside a button is not a thing.
@@ -1042,48 +1036,41 @@ export function renderChat(root) {
         onclick: () => openWeft(entry),
       }, [icon("gear")]);
 
-      // The pea becomes a bell, in the same pair: its own button, a sibling of the option
-      // like the ⚙, opening this weft's notifications rather than choosing it.
-      const said = `${entry.name}: ${count} notification${count === 1 ? "" : "s"} waiting`;
-      const bell = count ? [el("button", {
-        type: "button",
-        class: "pick-bell",
-        "aria-label": said,
-        title: said,
-        onclick: () => openNotifications(entry),
-      }, [icon("bell")])] : [];
-
       const item = el("li", {
-        class: `pick-item${isCurrent ? " on" : ""}${bound ? "" : " unbound"}${count ? " ringing" : ""}`,
-      }, [...bell, button, gear]);
+        class: `pick-item${isCurrent ? " on" : ""}${bound ? "" : " unbound"}${count ? " waiting" : ""}`,
+      }, [button, gear]);
       // Each row wears its own pick's pair, not the current one's — the pea is how you
       // tell them apart before choosing.
       dress(item, pairOf(entry));
       pickList.append(item);
     }
-
-    if (filtered) {
-      pickList.append(el("li", { class: "pick-item pick-all" }, [
-        el("button", {
-          type: "button",
-          text: "all wefts",
-          onclick: () => {
-            menuOnly = null;
-            buildPickMenu();
-          },
-        }),
-      ]));
-    }
   }
 
-  /** One weft's notifications, from the bell on its row. */
-  function openNotifications(entry) {
+  /** "2 notifications waiting" */
+  function waitingWords(count) {
+    return `${count} notification${count === 1 ? "" : "s"} waiting`;
+  }
+
+  /** Every weft's notifications in one place: from the LED's bell, or the drawer. */
+  function openNotifications() {
     closePickMenu();
+    closeDrawer();
     panels.push((p) => renderNotifications(p, {
-      weft: entry,
+      wefts,
       onChanged: pollWaiting,
+      // The name on a letter is its return address: that weft's chat.
+      onOpenWeft: (entry) => {
+        panels.popAll();
+        choose(entry);
+      },
       openPicture: openLightbox,
     }), { page: "notifications" });
+  }
+
+  /** The count on the drawer's Notifications entry: none at all when nothing waits. */
+  function waitingBadge() {
+    const total = Object.values(waiting).reduce((sum, n) => sum + n, 0);
+    return total ? el("b", { class: "count", text: total > 99 ? "99+" : String(total) }) : null;
   }
 
   let polling = false;
@@ -1109,6 +1096,9 @@ export function renderChat(root) {
     paintLed();
     renderPickButton();
     if (!pickList.hidden) buildPickMenu();
+    drawerBody.querySelector("[data-screen=notifications] .count")?.remove();
+    const badge = waitingBadge();
+    if (badge) drawerBody.querySelector("[data-screen=notifications] > span")?.append(badge);
   }
 
   function choose(entry) {
@@ -1569,11 +1559,8 @@ export function renderChat(root) {
         ? `${current.name}: ${current.model_id} on ${current.provider_name}`
         : `${current.name}: no engine yet`;
     pickCaps.replaceChildren(...capsOf(current).childNodes);
-    // The bar's pea rings too, shape only: a tap on the bar still opens the menu, and
-    // the bell to press is on the menu's row.
-    const ringing = Boolean(current && waiting[current.id] > 0);
-    pickLed.classList.toggle("ringing", ringing);
-    pickLed.replaceChildren(...(ringing ? [icon("bell")] : []));
+    // The bar's pea wears the ring too, only to be seen: the bell to press is the LED.
+    pickLed.classList.toggle("waiting", Boolean(current && waiting[current.id] > 0));
     pickGear.hidden = !current;
     const settings = current ? `${current.name}'s settings` : "";
     pickGear.title = settings;
@@ -1635,7 +1622,7 @@ export function renderChat(root) {
   }
 
   pickButton.addEventListener("click", () => {
-    if (pickList.hidden || menuOnly) openPickMenu();
+    if (pickList.hidden) openPickMenu();
     else closePickMenu();
   });
 

@@ -142,6 +142,26 @@ async def test_dismissing_all_clears_one_weft_only(door_client, session):
 
 
 @pytest.mark.asyncio
+async def test_one_inbox_holds_every_wefts_and_dismisses_them_all(door_client, session):
+    jarvis, jarvis_key = await weft_with_key(door_client, session, "Jarvis")
+    friday = await add_weft(door_client, "Friday")
+    friday_key = (await door_client.post(f"/api/wefts/{friday['id']}/door")).json()["key"]
+
+    await call(door_client, jarvis_key, "notify", title="from jarvis")
+    await call(door_client, friday_key, "notify", title="from friday")
+
+    response = await door_client.get("/api/notifications")
+    assert response.status_code == 200, response.text
+    assert [(n["title"], n["weft_id"]) for n in response.json()] == [
+        ("from friday", friday["id"]), ("from jarvis", jarvis["id"]),
+    ]
+
+    done = await door_client.post("/api/notifications/dismiss", json={})
+    assert done.json() == {"dismissed": 2}
+    assert await counts(door_client) == {}
+
+
+@pytest.mark.asyncio
 async def test_another_user_sees_none_of_it(door_client, session):
     weft, key = await weft_with_key(door_client, session)
     await call(door_client, key, "notify", title="for alice")
@@ -149,6 +169,8 @@ async def test_another_user_sees_none_of_it(door_client, session):
 
     await signed_in(door_client, session, username="bob")
     assert await counts(door_client) == {}
+    assert (await door_client.get("/api/notifications")).json() == []
+    assert (await door_client.post("/api/notifications/dismiss", json={})).json() == {"dismissed": 0}
     assert (await door_client.get("/api/notifications", params={"weft": weft["id"]})).status_code == 404
     assert (await door_client.delete(f"/api/notifications/{note['id']}")).status_code == 404
     refused = await door_client.post("/api/notifications/dismiss", json={"weft_id": weft["id"]})

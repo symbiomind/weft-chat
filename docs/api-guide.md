@@ -392,12 +392,13 @@ is dismissed, and dismissing deletes it: there is no separate read state.
 - **Counts:** `GET /api/notifications/counts` returns `{wefts: {weft_id: n}}`, leaving
   out wefts with none waiting. It is cheap, and the web client polls it every 15 s and
   on focus.
-- **Listing:** `GET /api/notifications?weft=<id>` returns that weft's notifications,
-  newest first, as `[{id, weft_id, title, body, created_at}]`. `body` is plain text and
-  may hold a picture reference, as a reply can. A weft that is not yours is a **404**.
+- **Listing:** `GET /api/notifications` returns every weft's notifications, newest
+  first, as `[{id, weft_id, title, body, created_at}]`. Add `?weft=<id>` for one weft's
+  only. `body` is plain text and may hold a picture reference, as a reply can. A weft
+  that is not yours is a **404**.
 - **Dismissing:** `DELETE /api/notifications/{id}` dismisses one (**204**).
-  `POST /api/notifications/dismiss` with `{weft_id}` dismisses all of one weft's and
-  returns `{dismissed: n}`.
+  `POST /api/notifications/dismiss` dismisses them all and returns `{dismissed: n}`.
+  With `{weft_id}` in the body, only that weft's.
 - **Limits:** a weft can send 30 an hour. At most 100 wait per weft, and past that the
   oldest goes. Titles are cut to 120 characters and bodies to 4000.
 - **History:** notifications are kept in Weft's own database whatever the weft's

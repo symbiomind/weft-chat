@@ -1,18 +1,21 @@
-/* Weft — one weft's notifications.
+/* Weft — notifications: one inbox for every weft.
  *
- * What a weft's agent left through the door while the user was away, newest first.
- * Each is a letter, not a turn: it is read here, never in the chat, and dismissing it
- * is the only thing to do with it for now. Dismissed is gone, on every device.
+ * What the wefts' agents left through their doors while the user was away, newest
+ * first, all in one place, the way mail is read. Each is a letter, not a turn: it is
+ * read here, never in the chat, and dismissing it is the only thing to do with it for
+ * now. Dismissed is gone, on every device.
  *
  * A body is plain text, read the way a reply is: a picture reference in it shows as the
  * picture (references.js), and nothing else in it is interpreted.
  *
- * The page wears the weft's own pair, so whose letters these are is never in doubt.
+ * The page itself is neutral. Each letter wears its own weft's pair, with the pea and
+ * the name, so whose it is is never in doubt; the name is the return address, a tap
+ * away from that weft's chat.
  */
 
 import { el } from "../dom.js";
 import { dress, pairOf } from "../colours.js";
-import { panelHead } from "../panels.js";
+import { PURPOSE, panelHead } from "../panels.js";
 import * as providersApi from "../providers.js";
 import { picturesIn } from "../references.js";
 
@@ -25,11 +28,12 @@ function when(iso) {
 
 /**
  * @param {object} panels
- * @param {{weft: object, onChanged: () => void,
+ * @param {{wefts: () => object[], onChanged: () => void, onOpenWeft: (weft: object) => void,
  *   openPicture: (src: string, name: string) => void}} options
- *   `onChanged` after anything is dismissed, so the bells can catch up.
+ *   `wefts` is the user's wefts, asked as each letter is drawn, for its name and pair.
+ *   `onChanged` after anything is dismissed, so the bell can catch up.
  */
-export function renderNotifications(panels, { weft, onChanged, openPicture }) {
+export function renderNotifications(panels, { wefts, onChanged, onOpenWeft, openPicture }) {
   const list = el("div", { class: "rows notes" }, [
     el("p", { class: "empty", text: "Looking…" }),
   ]);
@@ -38,7 +42,7 @@ export function renderNotifications(panels, { weft, onChanged, openPicture }) {
     onclick: async () => {
       dismissAll.disabled = true;
       try {
-        await providersApi.dismissAllNotifications(weft.id);
+        await providersApi.dismissAllNotifications();
       } catch {
         /* the list below says what is still there */
       }
@@ -71,7 +75,23 @@ export function renderNotifications(panels, { weft, onChanged, openPicture }) {
     return row;
   }
 
-  function noteRow(note) {
+  /** Who it is from: the pea, the name (a door to that weft's chat), and when. */
+  function from(weft, note) {
+    const name = weft
+      ? el("button", {
+        type: "button", class: "note-weft", text: weft.name,
+        title: `talk to ${weft.name}`,
+        onclick: () => onOpenWeft(weft),
+      })
+      : el("span", { class: "note-weft", text: "a weft" });
+    return el("div", { class: "note-from" }, [
+      el("span", { class: "led" }),
+      name,
+      el("span", { class: "row-sub", text: when(note.created_at) }),
+    ]);
+  }
+
+  function noteRow(note, weft) {
     const shown = picturesIn(note.body);
     const dismiss = el("button", {
       type: "button", class: "small", text: "Dismiss",
@@ -84,29 +104,49 @@ export function renderNotifications(panels, { weft, onChanged, openPicture }) {
         }
         row.remove();
         onChanged();
-        if (!list.querySelector(".note")) paint([]);
+        const left = list.querySelectorAll(".note").length;
+        if (!left) paint([]);
+        else dismissAll.hidden = left < 2;
       },
     });
     const main = el("div", { class: "row-main" }, [
+      from(weft, note),
       el("div", { class: "row-name", text: note.title }),
-      el("div", { class: "row-sub", text: when(note.created_at) }),
     ]);
     if (shown.text) main.append(el("p", { class: "note-body", text: shown.text }));
     if (shown.pictures.length) main.append(pictures(shown.pictures));
     const row = el("div", { class: "row note" }, [main, dismiss]);
+    dress(row, pairOf(weft));
     return row;
+  }
+
+  /** Nothing waiting. Where nothing could arrive yet either, say where letters come from. */
+  function empty() {
+    if (wefts().some((w) => w.has_door)) {
+      return [el("p", { class: "empty", text: "Nothing waiting." })];
+    }
+    return [
+      el("p", { class: "empty", text: "Nothing waiting, and nothing can arrive yet." }),
+      el("p", {
+        class: "hint",
+        text: "Notifications come from an agent, through its weft's door. Open one under "
+          + "Agent door on a weft's page (the ⚙ beside it on the bar), connect an agent "
+          + "to it, and what that agent reports lands here.",
+      }),
+    ];
   }
 
   function paint(notes) {
     dismissAll.hidden = notes.length < 2;
+    const byId = new Map(wefts().map((w) => [w.id, w]));
     list.replaceChildren(...(notes.length
-      ? notes.map(noteRow)
-      : [el("p", { class: "empty", text: `Nothing waiting from ${weft.name}.` })]));
+      ? notes.map((note) => noteRow(note, byId.get(note.weft_id)))
+      : empty()));
   }
 
   async function load() {
     try {
-      paint(await providersApi.listNotifications(weft.id));
+      paint(await providersApi.listNotifications());
     } catch {
       list.replaceChildren(el("p", { class: "empty", text: "Could not load the notifications." }));
     }
@@ -115,13 +155,12 @@ export function renderNotifications(panels, { weft, onChanged, openPicture }) {
   load();
 
   const node = el("div", { class: "panel-inner" }, [
-    panelHead(panels, { title: weft.name, sub: "notifications · what they left while you were away" }),
+    panelHead(panels, { title: "Notifications", sub: PURPOSE.notifications }),
     el("div", { class: "panel-body" }, [
       el("div", { class: "notes-head" }, [dismissAll]),
       list,
     ]),
   ]);
-  dress(node, pairOf(weft));
 
   return {
     node,

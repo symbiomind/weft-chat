@@ -275,13 +275,13 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 #stat-led.amber{background:#f0a832; color:#f0a832; animation:ledpulse 1s ease-in-out infinite}
 @keyframes ledpulse{0%,100%{opacity:.45}50%{opacity:1}}
 
-/* NOTIFICATIONS WAITING: the bell.
+/* NOTIFICATIONS WAITING: the bell, on the LED alone.
  *
- * On the LED it takes the shape and keeps the health colour, because the colour still
- * means what it always did: a red bell is news the window cannot refresh. In a weft's
- * place on the Pick it takes that weft's pair, filled with A and drawn in B, because
- * whose news it is matters more than that there is news. A pulse and a small swing
- * rather than a number: it reads at arm's length on an old phone. */
+ * It takes the shape and keeps the health colour, because the colour still means what
+ * it always did: a red bell is news the window cannot refresh. A pulse and a small
+ * swing rather than a number: it reads at arm's length on an old phone. It is the one
+ * bell, and the one to press: a weft with news wears a ring on its pea instead (below),
+ * to be seen, not pressed. */
 #stat-led.ringing{
   width:auto; height:auto; border-radius:6px; background:none; box-shadow:none;
   display:flex; align-items:center; justify-content:center; cursor:pointer;
@@ -290,7 +290,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
   filter:drop-shadow(0 0 4px currentColor)}
 #stat-led.ringing:focus-visible{outline:2px solid var(--text); outline-offset:2px}
 #stat-led.green[role=button]:focus-visible{outline:2px solid var(--text); outline-offset:3px}
-.ringing .ic, .pick-bell .ic{transform-origin:50% 12%; animation:bell-ring 2.4s ease-in-out infinite}
+#stat-led.ringing .ic{transform-origin:50% 12%; animation:bell-ring 2.4s ease-in-out infinite}
 @keyframes bell-ring{
   0%, 45%, 100%{transform:scale(1) rotate(0)}
   8%{transform:scale(1.14) rotate(-12deg)}
@@ -348,10 +348,6 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
   background:radial-gradient(circle at 30% 30%, var(--weft-a), var(--weft-b));
   box-shadow:0 0 8px 1px var(--weft-a);
 }
-#pick-button .led.ringing{width:18px; height:18px; background:none; box-shadow:none;
-  display:flex; align-items:center; justify-content:center}
-#pick-button .led.ringing .ic{width:18px; height:18px; fill:var(--weft-a);
-  stroke:var(--weft-b); stroke-width:1.6; filter:drop-shadow(0 0 4px var(--weft-a))}
 #pick-button .pick-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 #pick-button .chev{color:var(--dim); font-size:11px; transition:transform .2s ease}
 #pick-button[aria-expanded=true] .chev{transform:rotate(180deg)}
@@ -420,7 +416,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
  * (colours.js), so every pea shows its own weft rather than the current one; a pick
  * nobody has dressed wears fern/twilight. Static gradient: painted once, composited on
  * the GPU, nothing per frame. It must never be animated. A weft with notifications
- * waiting shows a bell in its place instead, and the bell is what moves. */
+ * waiting wears a ring around it instead, and the ring is what moves. */
 .pick-item .led,
 .colour-preview .led{
   width:10px; height:10px; flex:0 0 auto; align-self:center;
@@ -444,16 +440,17 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 }
 .pick-item button.pick-gear:hover, .pick-item button.pick-gear:focus-visible{color:var(--text)}
 .pick-empty button{color:var(--dim); font-style:italic}
-/* A weft with news: the bell stands where the pea was, as a tap target of its own. */
-.pick-item button.pick-bell{
-  width:auto; flex:0 0 auto; align-items:center; justify-content:center;
-  padding:8px 4px 8px 10px; line-height:1;
+/* A weft with news: a ring in its own colour around the pea, on the bar and the menu
+   alike. Nothing to press: the row still picks, and the LED's bell opens the letters.
+   The ring breathes under full motion; calm and still keep it, steady. */
+#pick-button .led.waiting, .pick-item.waiting .led{
+  outline:2px solid var(--weft-a); outline-offset:2px;
+  animation:pea-ring 2.4s ease-in-out infinite;
 }
-.pick-bell .ic{width:20px; height:20px; fill:var(--weft-a); stroke:var(--weft-b);
-  stroke-width:1.6; filter:drop-shadow(0 0 4px var(--weft-a))}
-.pick-item.ringing > button[role=option]{padding-left:6px}
-/* The way back from "only the wefts with news" to all of them. */
-.pick-all button{justify-content:center; color:var(--dim); font-size:13px}
+@keyframes pea-ring{
+  0%, 100%{outline-color:var(--weft-a); outline-offset:2px}
+  50%{outline-color:color-mix(in srgb, var(--weft-a) 30%, transparent); outline-offset:3px}
+}
 /* the mute: one tap and nothing on this device speaks, wherever the drawer is.
    The same switch as "speak replies aloud", so the two always agree. */
 #mute-btn{flex:0 0 auto; width:36px; height:36px; padding:0;
@@ -749,12 +746,27 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 .panel .row.find.locked .row-name{color:var(--dim); letter-spacing:.2em}
 .about-forget{display:flex; justify-content:flex-start}
 
-/* a weft's notifications: letters, in the weft's own colour */
+/* notifications: letters, each in its own weft's colour, on a neutral page */
 .notes-head{display:flex; justify-content:flex-end}
 .notes-head:has(> [hidden]:only-child){display:none}
 .panel .rows > .row.note{align-items:flex-start; border-left:3px solid var(--weft-a)}
 .note-body{margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.5}
 .note .bubble-pics{margin:8px 0 0}
+/* who it is from: the pea, the name (to that weft's chat), when */
+.note-from{display:flex; align-items:center; gap:8px; margin-bottom:4px; min-width:0}
+.note-from .led{width:10px; height:10px; flex:0 0 auto; border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, var(--weft-a), var(--weft-b))}
+.note-weft{font:inherit; font-size:.85rem; font-weight:700; color:var(--weft-a);
+  background:none; border:0; padding:0; min-width:0;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+button.note-weft{cursor:pointer}
+button.note-weft:hover{text-decoration:underline}
+button.note-weft:focus-visible{outline:2px solid var(--weft-a); outline-offset:2px; border-radius:4px}
+.note-from .row-sub{margin:0; white-space:nowrap}
+/* the drawer entry's count: only there when something waits */
+.chunk.big span .count{display:inline-block; margin-left:8px; padding:1px 7px; border-radius:999px;
+  background:var(--fern); color:#12141a; font-size:.72rem; font-weight:700;
+  vertical-align:2px; line-height:1.4}
 .about-colophon{margin-top:18px; padding-top:14px; border-top:1px solid var(--edge);
   display:flex; align-items:baseline; gap:10px; font-size:.78rem; color:var(--dim)}
 .about-colophon .wordmark{font-size:15px; font-weight:700; letter-spacing:.04em; color:var(--text)}

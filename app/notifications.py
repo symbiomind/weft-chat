@@ -116,12 +116,16 @@ async def counts(session: AsyncSession, user_id: str) -> dict[str, int]:
     return {weft_id: n for weft_id, n in rows}
 
 
-async def of_weft(session: AsyncSession, user_id: str, weft_id: str) -> list[Notification]:
-    """A weft's waiting notifications, newest first. Empty for a weft not this user's."""
+async def of_user(
+    session: AsyncSession, user_id: str, weft_id: str | None = None,
+) -> list[Notification]:
+    """The user's waiting notifications, newest first: every weft's, or just ``weft_id``'s.
+    Empty for a weft not this user's."""
+    query = select(Notification).where(Notification.user_id == user_id)
+    if weft_id is not None:
+        query = query.where(Notification.weft_id == weft_id)
     rows = await session.scalars(
-        select(Notification)
-        .where(Notification.user_id == user_id, Notification.weft_id == weft_id)
-        .order_by(Notification.created_at.desc(), Notification.id.desc())
+        query.order_by(Notification.created_at.desc(), Notification.id.desc())
     )
     return list(rows)
 
@@ -135,12 +139,12 @@ async def dismiss(session: AsyncSession, user_id: str, note_id: str) -> bool:
     return result.rowcount > 0
 
 
-async def dismiss_all(session: AsyncSession, user_id: str, weft_id: str) -> int:
-    """Dismiss every one a weft has waiting. Returns how many went. Commits."""
-    result = await session.execute(
-        delete(Notification).where(
-            Notification.user_id == user_id, Notification.weft_id == weft_id,
-        )
-    )
+async def dismiss_all(session: AsyncSession, user_id: str, weft_id: str | None = None) -> int:
+    """Dismiss every one waiting: the user's, or just ``weft_id``'s. Returns how many went.
+    Commits."""
+    query = delete(Notification).where(Notification.user_id == user_id)
+    if weft_id is not None:
+        query = query.where(Notification.weft_id == weft_id)
+    result = await session.execute(query)
     await session.commit()
     return result.rowcount
