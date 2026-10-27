@@ -442,7 +442,8 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 .pick-empty button{color:var(--dim); font-style:italic}
 /* A weft with news: a ring in its own colour around the pea, on the bar and the menu
    alike. Nothing to press: the row still picks, and the LED's bell opens the letters.
-   The ring breathes under full motion; calm and still keep it, steady. */
+   The ring breathes the way the donut does, so the pea becomes a tiny donut in the
+   weft's own colour: keep it breathing, not blinking. Calm and still keep it, steady. */
 #pick-button .led.waiting, .pick-item.waiting .led{
   outline:2px solid var(--weft-a); outline-offset:2px;
   animation:pea-ring 2.4s ease-in-out infinite;
