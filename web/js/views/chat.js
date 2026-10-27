@@ -575,9 +575,13 @@ export function renderChat(root) {
     type: "button", class: "wordmark", title: "someone has been here since 1966",
     onclick: onWordmark,
   }, [
-    document.createTextNode("w"),
-    el("em", { text: "e" }),
-    document.createTextNode("ft"),
+    el("span", { class: "as-weft" }, [
+      document.createTextNode("w"),
+      el("em", { text: "e" }),
+      document.createTextNode("ft"),
+    ]),
+    // What it reads instead while she beckons, under calm and still motion (app.css).
+    el("span", { class: "as-eliza" }, [el("em", { text: "E" }), document.createTextNode("LIZA")]),
   ]);
   const drawerBody = el("div", { id: "drawer-body" });
   // A dialog while open, and inert while shut: slid off screen, it would otherwise still
@@ -650,6 +654,7 @@ export function renderChat(root) {
    */
   function onWordmark() {
     if (tutor.find(ELIZA_TIP)) placeEliza();
+    paintGlitch();
   }
 
   /** Whether she belongs in the Pick menu: found on the account, not hidden here. */
@@ -682,18 +687,37 @@ export function renderChat(root) {
   }
 
   /**
-   * The wordmark glitches once the drawer has slid in (.28s), so it is seen. Calm and
-   * still motion get the e losing its colour for the same moment instead (app.css).
+   * While she beckons, the wordmark glitches for as long as the drawer is open, so a
+   * tip card over it cannot hide it. Calm and still motion get no glitch: the wordmark
+   * reads ELIZA instead (app.css). Painted on each opening, and stopped by the tap that finds her.
    */
-  let glitchTimer = 0;
-  function glitchWordmark() {
-    clearTimeout(glitchTimer);
-    wordmark.classList.remove("glitch");
-    glitchTimer = setTimeout(() => {
-      wordmark.classList.add("glitch");
-      glitchTimer = setTimeout(() => wordmark.classList.remove("glitch"), 700);
-    }, 380);
+  function paintGlitch() {
+    const beckons = elizaBeckons((id) => tutor.has(id));
+    wordmark.classList.toggle("glitch", beckons);
+    if (!beckons) stopSlip();
   }
+
+  function stopSlip() {
+    clearTimeout(slipTimer);
+    wordmark.classList.remove("slip");
+  }
+
+  /**
+   * Two bursts in five, her name slips through: ELIZA for .7s from the burst's worst
+   * moment, torn in and out with her own glitch (app.css, eliza-slip). Only full motion
+   * runs the bursts, so calm and still never get this.
+   */
+  let slipTimer = 0;
+  function onGlitchBurst(event) {
+    if (event.animationName !== "wordmark-glitch" || Math.random() >= 0.4) return;
+    clearTimeout(slipTimer);
+    slipTimer = setTimeout(() => {
+      wordmark.classList.add("slip");
+      slipTimer = setTimeout(() => wordmark.classList.remove("slip"), 700);
+    }, 350);
+  }
+  wordmark.addEventListener("animationstart", onGlitchBurst);
+  wordmark.addEventListener("animationiteration", onGlitchBurst);
 
   /** The controls on her card: in place of a settings page, which she has no use for. */
   function elizaControls() {
@@ -911,7 +935,7 @@ export function renderChat(root) {
     // Into the dialog, as a panel does: a keyboard user should not be left on ☰.
     drawer.querySelector("#drawer-close")?.focus();
     tutor.visit();
-    if (elizaBeckons((id) => tutor.has(id))) glitchWordmark();
+    paintGlitch();
   }
 
   function closeDrawer() {
@@ -920,6 +944,8 @@ export function renderChat(root) {
     drawer.classList.remove("open");
     scrim.classList.remove("open");
     drawer.inert = true;
+    stopSlip();
+    wordmark.classList.remove("glitch");
     burger.setAttribute("aria-expanded", "false");
     // Back where it came from, unless something else has already taken it.
     if (hadFocus) burger.focus();
@@ -2245,7 +2271,7 @@ export function renderChat(root) {
     panels.popAll();
     unwatchPanels();
     tutor.teardown();
-    clearTimeout(glitchTimer);
+    clearTimeout(slipTimer);
     closePickMenu();
     document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("online", onNetworkChange);

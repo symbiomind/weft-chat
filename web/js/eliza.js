@@ -43,7 +43,7 @@ export const ELIZA_TIP = "drawer/eliza";
 /**
  * The second door to her: the status light's hidden tip leads to this one
  * (app/docs/tutorials/chat-things.md). Found that and not her, and the wordmark
- * glitches every time the drawer opens, until the tap that finds her.
+ * glitches whenever the drawer is open, until the tap that finds her.
  */
 export const THINGS_TIP = "chat/things";
 

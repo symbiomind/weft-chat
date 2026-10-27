@@ -503,18 +503,35 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 /* One tap meets ELIZA (js/eliza.js). The pointer is the only tell. */
 #drawer-foot .wordmark{cursor:pointer}
 #drawer-foot .wordmark em{font-style:normal; color:var(--fern)}
-/* Something shifted (js/eliza.js, elizaBeckons). Once per opening, .6s, small: torn
-   into slices and split into two colours, then back as if nothing happened. */
-#drawer-foot .wordmark.glitch{animation:wordmark-glitch .6s steps(1, end) 1}
+#drawer-foot .wordmark .as-eliza{display:none}
+/* Her name slipping through a burst, two in five (js/views/chat.js, onGlitchBurst):
+   torn in, held still long enough to be read, torn out again. */
+#drawer-foot .wordmark.slip .as-weft{display:none}
+#drawer-foot .wordmark.slip .as-eliza{display:inline-block; animation:eliza-slip .7s steps(1, end) 1}
+@keyframes eliza-slip{
+  0%{transform:translate(-2px, 0); text-shadow:2px 0 #ff3b6b, -2px 0 #3bd8ff; clip-path:inset(8% 0 52% 0)}
+  6%{transform:translate(3px, 0) skewX(-10deg); text-shadow:-3px 0 #ff3b6b, 3px 0 #3bd8ff; clip-path:inset(0 0 66% 0)}
+  12%{transform:translate(-3px, 0); text-shadow:3px 0 #ff3b6b, -3px 0 #3bd8ff; clip-path:inset(70% 0 0 0)}
+  18%{transform:translate(2px, -1px); text-shadow:-2px 0 #ff3b6b, 2px 0 #3bd8ff; clip-path:inset(28% 0 30% 0)}
+  24%{transform:translate(1px, 0); text-shadow:-1px 0 #ff3b6b, 1px 0 #3bd8ff; clip-path:none}
+  30%{transform:none; text-shadow:none; clip-path:none}
+  82%{transform:translate(2px, 0); text-shadow:-2px 0 #ff3b6b, 2px 0 #3bd8ff; clip-path:inset(58% 0 4% 0)}
+  88%{transform:translate(-3px, 0) skewX(10deg); text-shadow:3px 0 #ff3b6b, -3px 0 #3bd8ff; clip-path:inset(0 0 60% 0)}
+  94%, 100%{transform:none; text-shadow:none; clip-path:none}
+}
+/* Something shifted (js/eliza.js, elizaBeckons). For as long as the drawer is open
+   and she is unfound: every 2.4s a .6s burst, small, torn into slices and split into
+   two colours, then back as if nothing happened. It waits for the drawer's slide. */
+#drawer-foot .wordmark.glitch{animation:wordmark-glitch 2.4s steps(1, end) .38s infinite}
 @keyframes wordmark-glitch{
   0%{transform:translate(-2px, 0); text-shadow:2px 0 #ff3b6b, -2px 0 #3bd8ff; clip-path:inset(8% 0 52% 0)}
-  12%{transform:translate(2px, -1px); text-shadow:-2px 0 #ff3b6b, 2px 0 #3bd8ff; clip-path:inset(58% 0 4% 0)}
-  24%{transform:translate(-1px, 1px); text-shadow:1px 0 #ff3b6b, -1px 0 #3bd8ff; clip-path:inset(28% 0 30% 0)}
-  36%{transform:none; text-shadow:none; clip-path:none}
-  58%{transform:translate(3px, 0) skewX(-10deg); text-shadow:-3px 0 #ff3b6b, 3px 0 #3bd8ff; clip-path:inset(0 0 66% 0)}
-  68%{transform:translate(-3px, 0); text-shadow:3px 0 #ff3b6b, -3px 0 #3bd8ff; clip-path:inset(70% 0 0 0)}
-  80%{transform:translate(1px, 0); text-shadow:-1px 0 #ff3b6b, 1px 0 #3bd8ff; clip-path:none}
-  100%{transform:none; text-shadow:none; clip-path:none}
+  3%{transform:translate(2px, -1px); text-shadow:-2px 0 #ff3b6b, 2px 0 #3bd8ff; clip-path:inset(58% 0 4% 0)}
+  6%{transform:translate(-1px, 1px); text-shadow:1px 0 #ff3b6b, -1px 0 #3bd8ff; clip-path:inset(28% 0 30% 0)}
+  9%{transform:none; text-shadow:none; clip-path:none}
+  14.5%{transform:translate(3px, 0) skewX(-10deg); text-shadow:-3px 0 #ff3b6b, 3px 0 #3bd8ff; clip-path:inset(0 0 66% 0)}
+  17%{transform:translate(-3px, 0); text-shadow:3px 0 #ff3b6b, -3px 0 #3bd8ff; clip-path:inset(70% 0 0 0)}
+  20%{transform:translate(1px, 0); text-shadow:-1px 0 #ff3b6b, 1px 0 #3bd8ff; clip-path:none}
+  25%, 100%{transform:none; text-shadow:none; clip-path:none}
 }
 #drawer-foot .links{margin-left:auto; display:flex; gap:12px}
 #drawer-foot a{color:var(--dim); font-size:13px; text-decoration:none; padding:4px 6px; border-radius:6px}
@@ -1280,8 +1297,10 @@ button.row.pick-speaker.current{border-color:color-mix(in srgb, var(--fern) 55%,
 }
 /* the shelf's petals fade in where they stand, without the spring */
 :root:is([data-motion=calm], [data-motion=still]) #send-shelf .petal{transform:none}
-/* the wordmark's glitch: the e loses its colour for the moment instead */
-:root:is([data-motion=calm], [data-motion=still]) #drawer-foot .wordmark.glitch em{color:var(--text)}
+/* the wordmark's glitch: nothing moves or loops. The wordmark simply reads ELIZA while
+   she beckons, her E in the e's colour (js/views/chat.js). */
+:root:is([data-motion=calm], [data-motion=still]) #drawer-foot .wordmark.glitch .as-weft{display:none}
+:root:is([data-motion=calm], [data-motion=still]) #drawer-foot .wordmark.glitch .as-eliza{display:inline}
 /* the send hint stops bobbing, at the colour it rests at */
 :root:is([data-motion=calm], [data-motion=still]) #send .hint{opacity:.55}
 
