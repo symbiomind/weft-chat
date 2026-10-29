@@ -525,6 +525,21 @@ MAX_AUDIO_BYTES = 20_971_520
 #: so a provider that only does wav still works.
 DEFAULT_AUDIO_FORMAT = "mp3"
 
+#: What we ask for when a server refuses mp3 by name. Ollama's speech endpoint does wav
+#: and pcm only, and new models served that way are arriving fast. wav, not "leave it
+#: out": a server whose own default is raw pcm would send audio with no header, which no
+#: browser plays. wav is about five times the size of mp3, which is why it is not first.
+FALLBACK_AUDIO_FORMAT = "wav"
+
+#: The statuses a refused format comes back as: a plain 400, or a 422 from a server
+#: whose request validation rejects the field.
+FORMAT_REFUSED_STATUSES = frozenset({400, 422})
+
+#: (base_url, model) pairs that refused mp3 once. Per process, in memory, so a reply in
+#: twelve paragraphs is not twelve refusals; a restart asks for mp3 again, which is
+#: how a server that has learned mp3 since gets noticed.
+_REFUSED_DEFAULT_FORMAT: set[tuple[str, str]] = set()
+
 #: Asking twice, at most. A speech server that answers 502 for a moment —
 #: a proxy whose health check queued behind a long clip and marked the backend down — is
 #: usually fine a second later, and without a retry that moment cost a whole paragraph.
@@ -541,6 +556,10 @@ SPEECH_RETRY_STATUSES = frozenset({502, 503, 504})
 
 class _SpeechHiccup(UpstreamError):
     """A failure that a second attempt has a fair chance of not seeing."""
+
+
+class _FormatRefused(UpstreamError):
+    """The server will not make audio in the format we asked for."""
 
 
 def voices_url(base_url: str) -> str:
@@ -637,14 +656,34 @@ async def speak(
 
     A 502, 503 or 504, or a server that could not be reached, is asked once more after a
     short pause. Only the second failure reaches the user.
+
+    A server that refuses mp3 by name is asked again for wav, and that model on that
+    server is asked for wav from then on.
     """
+    refused = (base_url, model) in _REFUSED_DEFAULT_FORMAT
     payload = {
         "model": model,
         "voice": voice,
         "input": text,
-        "response_format": DEFAULT_AUDIO_FORMAT,
+        "response_format": FALLBACK_AUDIO_FORMAT if refused else DEFAULT_AUDIO_FORMAT,
     }
 
+    try:
+        return await _speak_retrying(base_url, secret, payload)
+    except _FormatRefused:
+        if refused:
+            raise
+        logger.info(
+            "%s refused %s for %s; asking for %s.",
+            base_url, DEFAULT_AUDIO_FORMAT, model, FALLBACK_AUDIO_FORMAT,
+        )
+        _REFUSED_DEFAULT_FORMAT.add((base_url, model))
+        payload["response_format"] = FALLBACK_AUDIO_FORMAT
+        return await _speak_retrying(base_url, secret, payload)
+
+
+async def _speak_retrying(base_url: str, secret: str, payload: dict) -> tuple[str, bytes]:
+    """One clip, with the hiccup retry."""
     for attempt in range(1, SPEECH_ATTEMPTS + 1):
         try:
             return await _speak_once(base_url, secret, payload)
@@ -689,6 +728,15 @@ async def _speak_once(base_url: str, secret: str, payload: dict) -> tuple[str, b
         )
     if response.status_code in SPEECH_RETRY_STATUSES:
         raise _SpeechHiccup(
+            f"{base_url} answered {response.status_code}: {_brief(response.text)}"
+        )
+    if (
+        response.status_code in FORMAT_REFUSED_STATUSES
+        and "response_format" in response.text
+    ):
+        # Ollama: 'response_format "mp3" is not supported, use wav or pcm'. Matching the
+        # field name rather than the wording keeps a bad voice or model a plain error.
+        raise _FormatRefused(
             f"{base_url} answered {response.status_code}: {_brief(response.text)}"
         )
     if response.status_code >= 400:

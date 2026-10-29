@@ -11,6 +11,8 @@ so the parser is deliberately tolerant about what it accepts and strict about wh
 passes on.
 """
 
+import json
+
 import pytest
 
 from app import upstream
@@ -354,6 +356,7 @@ def speech_server(monkeypatch, answers):
         lambda **kw: real(transport=httpx.MockTransport(handler), **kw),
     )
     monkeypatch.setattr(upstream, "SPEECH_RETRY_DELAY", 0)
+    monkeypatch.setattr(upstream, "_REFUSED_DEFAULT_FORMAT", set())
     return seen
 
 
@@ -420,5 +423,82 @@ async def test_what_would_fail_again_is_not_retried(monkeypatch, answer):
     seen = speech_server(monkeypatch, [responses[answer], audio_ok()])
 
     with pytest.raises(upstream.UpstreamError):
+        await say()
+    assert len(seen) == 1
+
+
+# ---------------------------------------------------------------------------
+# Speech formats
+# ---------------------------------------------------------------------------
+
+def no_mp3():
+    import httpx
+    return httpx.Response(400, json={"error": {
+        "message": 'response_format "mp3" is not supported, use wav or pcm',
+        "type": "invalid_request_error",
+    }})
+
+
+def wav_ok():
+    import httpx
+    return httpx.Response(200, content=b"RIFFaudio", headers={"content-type": "audio/wav"})
+
+
+def asked_for(request):
+    return json.loads(request.content)["response_format"]
+
+
+@pytest.mark.asyncio
+async def test_mp3_is_asked_for_first(monkeypatch):
+    seen = speech_server(monkeypatch, [audio_ok()])
+
+    await say()
+    assert asked_for(seen[0]) == "mp3"
+
+
+@pytest.mark.asyncio
+async def test_a_server_that_refuses_mp3_is_asked_for_wav(monkeypatch):
+    """Ollama's speech endpoint does wav and pcm only, and says so with a 400."""
+    seen = speech_server(monkeypatch, [no_mp3(), wav_ok()])
+
+    assert await say() == ("audio/wav", b"RIFFaudio")
+    assert [asked_for(r) for r in seen] == ["mp3", "wav"]
+
+
+@pytest.mark.asyncio
+async def test_a_refusal_is_remembered_for_that_model(monkeypatch):
+    """A reply in twelve paragraphs should not be twelve refusals."""
+    seen = speech_server(monkeypatch, [no_mp3(), wav_ok(), wav_ok()])
+
+    await say()
+    await say("And again.")
+    assert [asked_for(r) for r in seen] == ["mp3", "wav", "wav"]
+
+
+@pytest.mark.asyncio
+async def test_a_refusal_is_not_remembered_for_another_model(monkeypatch):
+    seen = speech_server(monkeypatch, [no_mp3(), wav_ok(), audio_ok()])
+
+    await say()
+    await upstream.speak("http://k.test/v1", "sk", model="other", voice="v", text="Hi.")
+    assert [asked_for(r) for r in seen] == ["mp3", "wav", "mp3"]
+
+
+@pytest.mark.asyncio
+async def test_a_server_that_refuses_wav_too_reaches_the_user(monkeypatch):
+    seen = speech_server(monkeypatch, [no_mp3(), no_mp3()])
+
+    with pytest.raises(upstream.UpstreamError, match="response_format"):
+        await say()
+    assert len(seen) == 2
+
+
+@pytest.mark.asyncio
+async def test_a_400_about_something_else_does_not_change_format(monkeypatch):
+    import httpx
+
+    seen = speech_server(monkeypatch, [httpx.Response(400, text="unknown voice"), wav_ok()])
+
+    with pytest.raises(upstream.UpstreamError, match="unknown voice"):
         await say()
     assert len(seen) == 1
