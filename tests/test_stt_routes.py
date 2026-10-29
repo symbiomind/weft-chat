@@ -22,6 +22,7 @@ from tests.test_auth_routes import PASSWORD, login, make_user
 from tests.test_chat_routes import ready, stub_chat  # noqa: F401 (fixture)
 from tests.test_provider_routes import signed_in
 from tests.test_session_routes import fake_store, keeping  # noqa: F401 (fixture)
+from tests.test_weft_routes import add_weft
 
 STT_SECRET = "whisper-token-41f0"
 
@@ -52,9 +53,16 @@ def fake_transcribe(monkeypatch):
     return calls
 
 
-async def record(client, audio=b"\x1aE\xdf\xa3 fake webm", content_type="audio/webm"):
-    return await client.post("/api/stt/transcribe", content=audio,
+async def record(client, audio=b"\x1aE\xdf\xa3 fake webm", content_type="audio/webm",
+                 weft_id=None):
+    params = {"weft_id": weft_id} if weft_id else None
+    return await client.post("/api/stt/transcribe", content=audio, params=params,
                              headers={"Content-Type": content_type})
+
+
+async def set_ears(client, weft_id, mode, provider_id=None, model=None):
+    return await client.put(f"/api/wefts/{weft_id}/stt",
+                            json={"mode": mode, "provider_id": provider_id, "model": model})
 
 
 # ---- settings ------------------------------------------------------------------
@@ -254,6 +262,133 @@ async def test_transcribe_posts_multipart_the_openai_way(monkeypatch):
     assert b"OPUSDATA" in body
     assert b'name="model"\r\n\r\nbase' in body
     assert b'name="language"\r\n\r\nen' in body
+
+
+# ---- a weft's own ears ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_new_weft_hears_with_the_account(csrf_client, session, fake_transcribe):
+    await signed_in(csrf_client, session)
+    await choose(csrf_client, await add_stt(csrf_client), model="base")
+    weft = await add_weft(csrf_client)
+    assert weft["stt_mode"] == "account"
+
+    assert (await record(csrf_client, weft_id=weft["id"])).status_code == 200
+    assert fake_transcribe[0]["base_url"] == "http://whisper.lan:9000/v1"
+    assert fake_transcribe[0]["model"] == "base"
+
+
+@pytest.mark.asyncio
+async def test_a_weft_with_ears_of_its_own_uses_them(csrf_client, session, fake_transcribe):
+    """Trying a new server in one window, beside the usual one. Language stays the
+    account's: it is about the user, not the weft."""
+    await signed_in(csrf_client, session)
+    await choose(csrf_client, await add_stt(csrf_client), language="en")
+    ollama = await add_stt(csrf_client, name="ollama", url="http://ollama.lan/v1")
+    weft = await add_weft(csrf_client)
+
+    response = await set_ears(csrf_client, weft["id"], "own", ollama, "lfm3-omni:2b")
+    assert response.status_code == 200, response.text
+    assert response.json()["stt_mode"] == "own"
+    assert response.json()["stt_provider_id"] == ollama
+
+    assert (await record(csrf_client, weft_id=weft["id"])).status_code == 200
+    assert (await record(csrf_client)).status_code == 200
+    first, second = fake_transcribe
+    assert (first["base_url"], first["model"]) == ("http://ollama.lan/v1", "lfm3-omni:2b")
+    assert first["language"] == "en"
+    assert second["base_url"] == "http://whisper.lan:9000/v1"
+
+
+@pytest.mark.asyncio
+async def test_own_ears_without_an_account_provider(csrf_client, session, fake_transcribe):
+    await signed_in(csrf_client, session)
+    ollama = await add_stt(csrf_client, name="ollama", url="http://ollama.lan/v1")
+    weft = await add_weft(csrf_client)
+    await set_ears(csrf_client, weft["id"], "own", ollama)
+
+    assert (await record(csrf_client, weft_id=weft["id"])).status_code == 200
+    assert fake_transcribe[0]["model"] == "whisper-1"
+    assert (await record(csrf_client)).status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_a_weft_can_be_deaf(csrf_client, session, fake_transcribe):
+    await signed_in(csrf_client, session)
+    await choose(csrf_client, await add_stt(csrf_client))
+    weft = await add_weft(csrf_client)
+    await set_ears(csrf_client, weft["id"], "off")
+
+    response = await record(csrf_client, weft_id=weft["id"])
+    assert response.status_code == 409
+    assert "off" in response.json()["detail"]
+    assert fake_transcribe == []
+
+
+@pytest.mark.asyncio
+async def test_a_deleted_own_provider_hears_nothing(csrf_client, session, fake_transcribe):
+    """Not the account's ears instead: that would compare the usual server with itself."""
+    await signed_in(csrf_client, session)
+    await choose(csrf_client, await add_stt(csrf_client))
+    ollama = await add_stt(csrf_client, name="ollama", url="http://ollama.lan/v1")
+    weft = await add_weft(csrf_client)
+    await set_ears(csrf_client, weft["id"], "own", ollama)
+
+    assert (await csrf_client.delete(f"/api/providers/{ollama}")).status_code in (200, 204)
+
+    listed = {w["id"]: w for w in (await csrf_client.get("/api/wefts")).json()}
+    assert listed[weft["id"]]["stt_mode"] == "own"
+    assert listed[weft["id"]]["stt_provider_id"] is None
+    response = await record(csrf_client, weft_id=weft["id"])
+    assert response.status_code == 409
+    assert "gone" in response.json()["detail"]
+    assert fake_transcribe == []
+
+
+@pytest.mark.asyncio
+async def test_switching_back_keeps_the_own_provider(csrf_client, session):
+    await signed_in(csrf_client, session)
+    ollama = await add_stt(csrf_client, name="ollama", url="http://ollama.lan/v1")
+    weft = await add_weft(csrf_client)
+    await set_ears(csrf_client, weft["id"], "own", ollama, "lfm3-omni:2b")
+
+    back = (await set_ears(csrf_client, weft["id"], "account")).json()
+    assert back["stt_mode"] == "account"
+    assert (back["stt_provider_id"], back["stt_model"]) == (ollama, "lfm3-omni:2b")
+
+
+@pytest.mark.asyncio
+async def test_own_ears_must_be_a_speech_to_text_provider(csrf_client, session):
+    await signed_in(csrf_client, session)
+    weft = await add_weft(csrf_client)
+    chat = (await csrf_client.post("/api/providers", json={
+        "name": "bridge", "base_url": "http://bridge.lan/v1", "secret": "s", "kind": "llm",
+    })).json()["id"]
+
+    assert (await set_ears(csrf_client, weft["id"], "own")).status_code == 422
+    assert (await set_ears(csrf_client, weft["id"], "own", chat)).status_code == 409
+    assert (await set_ears(csrf_client, weft["id"], "sometimes")).status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_another_users_provider_cannot_be_a_wefts_ears(csrf_client, session):
+    await signed_in(csrf_client, session, username="bob")
+    theirs = await add_stt(csrf_client)
+
+    await make_user(session, username="carol")
+    response = await login(csrf_client, username="carol", password=PASSWORD)
+    csrf_client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+    weft = await add_weft(csrf_client)
+
+    assert (await set_ears(csrf_client, weft["id"], "own", theirs)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_another_users_weft_is_not_found(csrf_client, session, fake_transcribe):
+    await signed_in(csrf_client, session)
+    assert (await record(csrf_client, weft_id="not-mine")).status_code == 404
+    assert fake_transcribe == []
 
 
 # ---- spoken messages ---------------------------------------------------------------

@@ -152,6 +152,20 @@ class PickHistory(str, PyEnum):
     session = "session"
 
 
+class WeftHearing(str, PyEnum):
+    """Which ears a weft has: the push-to-talk provider its recordings go to (2026-10-29).
+
+    `account` is the default and means what Weft has always done: the provider chosen
+    in Settings, for every weft alike. `own` is a provider of this weft's choosing, so
+    one window can try a new speech-to-text server beside the usual one. `off` is no 🎤
+    on this weft at all.
+    """
+
+    account = "account"
+    own = "own"
+    off = "off"
+
+
 #: Sane defaults for the two history dials, shared by the ORM, the API schemas and the
 #: migration that introduced them, so "what is the default" has exactly one answer.
 #:
@@ -203,9 +217,11 @@ class User(Base):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
-    #: Push to talk. One speech-to-text provider for every pick, not one
-    #: per pick: it is the user's voice being heard, and that does not change with who
-    #: is listening. Null is "no push to talk", and the 🎤 petal does not appear.
+    #: Push to talk. The account's speech-to-text provider, used by every weft that has
+    #: not chosen ears of its own (``Weft.stt_mode``): it is the user's voice being
+    #: heard, and that does not change with who is listening. A weft can still choose
+    #: another, which is how a new server gets tried beside the usual one. Null is "no
+    #: push to talk" for those wefts, and the 🎤 petal does not appear.
     #: ON DELETE SET NULL, so deleting the provider turns push to talk off.
     stt_provider_id: Mapped[str | None] = mapped_column(
         String(36),
@@ -519,6 +535,32 @@ class Weft(Base):
     #: The voice, e.g. "af_bella".
     tts_voice: Mapped[str | None] = mapped_column(String(128))
 
+    # ---- ears (2026-10-29) ----
+    #
+    # Push to talk uses the account's provider unless the weft says otherwise. Only the
+    # provider and its model are the weft's: language, send-on-release and "say it was
+    # spoken" are about the user, and stay on the account.
+
+    #: Which ears: the account's, its own, or none. See WeftHearing.
+    stt_mode: Mapped[WeftHearing] = mapped_column(
+        Enum(WeftHearing, native_enum=False, length=16),
+        nullable=False,
+        default=WeftHearing.account,
+        server_default=WeftHearing.account.value,
+    )
+
+    #: The speech-to-text provider when `stt_mode` is `own`.
+    #:
+    #: SET NULL for the voice's reason. A weft whose own provider was deleted hears
+    #: nothing rather than falling back to the account's: trying a new server against
+    #: the usual one, a quiet fallback would compare the usual one with itself.
+    stt_provider_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("provider_secrets.id", ondelete="SET NULL")
+    )
+
+    #: The model sent with `own` ears. Null is the account's default, ``whisper-1``.
+    stt_model: Mapped[str | None] = mapped_column(String(256))
+
     # ---- history (2026-09-16) ----
     #
     # Both hang off the WEFT for the same reason the voice does: bridge/iris and
@@ -645,7 +687,7 @@ class Weft(Base):
     provider: Mapped["ProviderSecret | None"] = relationship(foreign_keys=[provider_id])
 
     #: The speech provider, if one is set. Distinct from `provider` above: this row has
-    #: three foreign keys into the same table, which is why every relationship has to
+    #: four foreign keys into the same table, which is why every relationship has to
     #: name its own column explicitly.
     tts_provider: Mapped["ProviderSecret | None"] = relationship(
         foreign_keys=[tts_provider_id]
@@ -663,6 +705,10 @@ class Weft(Base):
     def bound(self) -> bool:
         """True when something answers this weft: a provider and a model, both."""
         return bool(self.provider_id and self.model_id)
+
+    def own_ears(self) -> bool:
+        """True when this weft hears through a provider of its own choosing."""
+        return self.stt_mode is WeftHearing.own
 
     def speaks(self) -> bool:
         """True when this weft has everything it needs to be spoken.

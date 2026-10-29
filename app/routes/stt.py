@@ -2,17 +2,20 @@
 Push to talk: the user's speech-to-text settings, and the relay that
 turns a recording into words.
 
-**One provider per user, not per pick.** It is the user's voice being heard, and that
-does not change with who is listening. The settings live on the user row; see
-``User.stt_provider_id`` and its neighbours.
+**One provider per user, unless a weft says otherwise.** It is the user's voice being
+heard, and that does not change with who is listening, so the settings live on the user
+row (``User.stt_provider_id`` and its neighbours). A weft can still choose ears of its
+own, or none (``Weft.stt_mode``), which is how a new server gets tried beside the usual
+one. Only the provider and model are the weft's.
 
 **The audio is relayed, never kept.** The browser posts the recording, the server opens
 the provider's sealed bearer and posts it on, and the words come back. Nothing about the
 recording is written anywhere.
 
-**The browser does not choose the provider.** It posts audio; the server uses whichever
-provider the user chose in Settings. A request naming a provider would make this route a
-general-purpose proxy to any endpoint the user owns.
+**The browser does not choose the provider.** It posts audio and says which weft it is
+for; the server uses whichever provider that weft, or failing that the user, chose. A
+request naming a provider would make this route a general-purpose proxy to any endpoint
+the user owns.
 """
 
 import logging
@@ -24,8 +27,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import db, deps, upstream
-from app.models import ProviderKind, ProviderSecret, User
+from app.models import ProviderKind, ProviderSecret, User, WeftHearing
 from app.routes.providers import _open_or_500, _read_capped, owned_provider
+from app.routes.wefts import owned_weft
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +96,16 @@ class ModelsOut(BaseModel):
     models: list[str]
 
 
-async def _chosen(session: AsyncSession, user: User) -> ProviderSecret | None:
-    """The user's speech-to-text provider, if one is chosen and still is one."""
-    if not user.stt_provider_id:
+async def _stt_provider(
+    session: AsyncSession, user: User, provider_id: str | None
+) -> ProviderSecret | None:
+    """One of the user's speech-to-text providers, if it exists and still is one."""
+    if not provider_id:
         return None
     provider = (
         await session.execute(
             select(ProviderSecret).where(
-                ProviderSecret.id == user.stt_provider_id,
+                ProviderSecret.id == provider_id,
                 ProviderSecret.user_id == user.id,
             )
         )
@@ -107,6 +113,44 @@ async def _chosen(session: AsyncSession, user: User) -> ProviderSecret | None:
     if provider is None or provider.kind is not ProviderKind.stt:
         return None
     return provider
+
+
+async def _chosen(session: AsyncSession, user: User) -> ProviderSecret | None:
+    """The user's speech-to-text provider, if one is chosen and still is one."""
+    return await _stt_provider(session, user, user.stt_provider_id)
+
+
+async def _ears(
+    session: AsyncSession, user: User, weft_id: str | None
+) -> tuple[ProviderSecret, str]:
+    """The provider and model a recording for this weft goes to, or 409.
+
+    No weft is the account's ears, as before wefts had their own. A weft whose own
+    provider was deleted hears nothing rather than falling back to the account's.
+    """
+    if weft_id:
+        weft = await owned_weft(session, user, weft_id)
+        if weft.stt_mode is WeftHearing.off:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Push to talk is off for this weft.",
+            )
+        if weft.stt_mode is WeftHearing.own:
+            provider = await _stt_provider(session, user, weft.stt_provider_id)
+            if provider is None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="This weft's speech-to-text provider is gone. Choose another on its page.",
+                )
+            return provider, weft.stt_model or DEFAULT_MODEL
+
+    provider = await _chosen(session, user)
+    if provider is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Push to talk needs a speech-to-text provider. Choose one in Settings.",
+        )
+    return provider, user.stt_model or DEFAULT_MODEL
 
 
 def _out(user: User, provider: ProviderSecret | None) -> SttOut:
@@ -181,13 +225,15 @@ async def list_models(
 @router.post("/transcribe", response_model=TranscriptOut)
 async def transcribe(
     request: Request,
+    weft_id: str | None = Query(default=None, max_length=36),
     user: User = Depends(deps.active_user),
     session: AsyncSession = Depends(db.get_session),
 ) -> TranscriptOut:
     """Turn one recording into words, with the user's own provider.
 
     The body is the recording itself, with the content type the browser recorded it in
-    (``audio/webm`` from Chrome, ``audio/mp4`` from Safari).
+    (``audio/webm`` from Chrome, ``audio/mp4`` from Safari). ``weft_id`` is the weft it
+    is for, whose ears decide where it goes; without one, the account's do.
     """
     content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
     if not content_type.startswith("audio/"):
@@ -197,12 +243,7 @@ async def transcribe(
         )
 
     # Before the upload is read: no provider means a lookup, not 25 MB of buffering.
-    provider = await _chosen(session, user)
-    if provider is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Push to talk needs a speech-to-text provider. Choose one in Settings.",
-        )
+    provider, model = await _ears(session, user, weft_id)
 
     audio = await _read_capped(request, upstream.MAX_TRANSCRIBE_BYTES, noun="recording")
     if not audio:
@@ -215,7 +256,7 @@ async def transcribe(
         text = await upstream.transcribe(
             provider.base_url, secret,
             audio=audio, content_type=content_type,
-            model=user.stt_model or DEFAULT_MODEL, language=user.stt_language,
+            model=model, language=user.stt_language,
         )
     except upstream.RecordingRefused as exc:
         # 415 tells the browser to send the same words again as wav.

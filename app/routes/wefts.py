@@ -37,6 +37,7 @@ from app.models import (
     ProviderKind,
     User,
     Weft,
+    WeftHearing,
     new_id,
     weft_name_key,
 )
@@ -92,6 +93,12 @@ class WeftOut(BaseModel):
     tts_provider_id: str | None = None
     tts_model: str | None = None
     tts_voice: str | None = None
+
+    #: Which ears push to talk uses here: the account's, its own, or none. With its own,
+    #: the provider (null once deleted, which means it hears nothing) and the model.
+    stt_mode: WeftHearing = WeftHearing.account
+    stt_provider_id: str | None = None
+    stt_model: str | None = None
 
     #: Whether this weft's MCP door is set up: a key has been minted for its agent. Not
     #: whether an agent has come through it; the door's own route says that.
@@ -153,6 +160,14 @@ class VoiceIn(BaseModel):
     tts_provider_id: str | None = Field(default=None, max_length=36)
     tts_model: str | None = Field(default=None, max_length=128)
     tts_voice: str | None = Field(default=None, max_length=128)
+
+
+class EarsIn(BaseModel):
+    """Choose which ears a weft has. A provider only with `own`, and required there."""
+
+    mode: WeftHearing
+    provider_id: str | None = Field(default=None, max_length=36)
+    model: str | None = Field(default=None, max_length=256)
 
 
 class HistoryIn(BaseModel):
@@ -225,6 +240,9 @@ def weft_out(weft: Weft) -> WeftOut:
         tts_provider_id=weft.tts_provider_id,
         tts_model=weft.tts_model,
         tts_voice=weft.tts_voice,
+        stt_mode=weft.stt_mode,
+        stt_provider_id=weft.stt_provider_id,
+        stt_model=weft.stt_model,
         has_door=weft.door_key is not None,
         history=weft.history,
         send_turns=weft.send_turns,
@@ -576,6 +594,41 @@ async def set_voice(
     weft.tts_provider_id = speaker.id
     weft.tts_model = body.tts_model
     weft.tts_voice = body.tts_voice
+    await session.commit()
+    return weft_out(weft)
+
+
+@router.put("/{weft_id}/stt", response_model=WeftOut)
+async def set_ears(
+    weft_id: str,
+    body: EarsIn,
+    user: User = Depends(deps.active_user),
+    session: AsyncSession = Depends(db.get_session),
+) -> WeftOut:
+    """Choose which ears this weft has: the account's, a provider of its own, or none.
+
+    Choosing `account` or `off` keeps the weft's own provider and model, so switching
+    back to `own` finds them still chosen, as the history dials keep a session store.
+    """
+    weft = await owned_weft(session, user, weft_id)
+
+    if body.mode is WeftHearing.own:
+        if not body.provider_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="Ears of its own need a speech-to-text provider.",
+            )
+        # Ownership again: without it a user could send recordings on somebody else's key.
+        ears = await owned_provider(session, user, body.provider_id)
+        if ears.kind is not ProviderKind.stt:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That provider is not a speech-to-text provider.",
+            )
+        weft.stt_provider_id = ears.id
+        weft.stt_model = (body.model or "").strip() or None
+
+    weft.stt_mode = body.mode
     await session.commit()
     return weft_out(weft)
 

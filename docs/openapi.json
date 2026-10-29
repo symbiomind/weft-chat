@@ -240,6 +240,43 @@
         "title": "DoorOut",
         "type": "object"
       },
+      "EarsIn": {
+        "description": "Choose which ears a weft has. A provider only with `own`, and required there.",
+        "properties": {
+          "mode": {
+            "$ref": "#/components/schemas/WeftHearing"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider_id": {
+            "anyOf": [
+              {
+                "maxLength": 36,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "EarsIn",
+        "type": "object"
+      },
       "EngineIn": {
         "description": "Bind a weft to a provider and a model, or unbind it.\n\nBoth or neither, like the voice: a provider with no model has nothing to ask for,\nand a model with no provider has nowhere to be asked.",
         "properties": {
@@ -1468,6 +1505,16 @@
         "title": "VoicesOut",
         "type": "object"
       },
+      "WeftHearing": {
+        "description": "Which ears a weft has: the push-to-talk provider its recordings go to (2026-10-29).\n\n`account` is the default and means what Weft has always done: the provider chosen\nin Settings, for every weft alike. `own` is a provider of this weft's choosing, so\none window can try a new speech-to-text server beside the usual one. `off` is no 🎤\non this weft at all.",
+        "enum": [
+          "account",
+          "own",
+          "off"
+        ],
+        "title": "WeftHearing",
+        "type": "string"
+      },
       "WeftIn": {
         "description": "Add a weft. The name is all it needs; the engine can be given now or later.",
         "properties": {
@@ -1634,6 +1681,32 @@
               }
             ],
             "title": "Session Provider Id"
+          },
+          "stt_mode": {
+            "$ref": "#/components/schemas/WeftHearing",
+            "default": "account"
+          },
+          "stt_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stt Model"
+          },
+          "stt_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stt Provider Id"
           },
           "tts_model": {
             "anyOf": [
@@ -2884,8 +2957,27 @@
     },
     "/api/stt/transcribe": {
       "post": {
-        "description": "Turn one recording into words, with the user's own provider.\n\nThe body is the recording itself, with the content type the browser recorded it in\n(``audio/webm`` from Chrome, ``audio/mp4`` from Safari).",
+        "description": "Turn one recording into words, with the user's own provider.\n\nThe body is the recording itself, with the content type the browser recorded it in\n(``audio/webm`` from Chrome, ``audio/mp4`` from Safari). ``weft_id`` is the weft it\nis for, whose ears decide where it goes; without one, the account's do.",
         "operationId": "transcribe_api_stt_transcribe_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "weft_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 36,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Weft Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2896,6 +2988,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Transcribe",
@@ -3743,6 +3845,59 @@
           }
         },
         "summary": "Set History",
+        "tags": [
+          "wefts"
+        ]
+      }
+    },
+    "/api/wefts/{weft_id}/stt": {
+      "put": {
+        "description": "Choose which ears this weft has: the account's, a provider of its own, or none.\n\nChoosing `account` or `off` keeps the weft's own provider and model, so switching\nback to `own` finds them still chosen, as the history dials keep a session store.",
+        "operationId": "set_ears_api_wefts__weft_id__stt_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "weft_id",
+            "required": true,
+            "schema": {
+              "title": "Weft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EarsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeftOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Ears",
         "tags": [
           "wefts"
         ]

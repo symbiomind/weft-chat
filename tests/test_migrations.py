@@ -410,3 +410,50 @@ def test_tell_weft_is_renamed_in_place_and_keeps_every_value(tmp_path):
     finally:
         db.close()
     assert counts(path) == (1, 1, 1)
+
+
+# ---------------------------------------------------------------------------
+# A weft chooses its ears (c7a2e5d9f3b1)
+# ---------------------------------------------------------------------------
+
+def test_weft_ears_arrive_without_rebuilding_wefts(tmp_path):
+    """Plain ADD COLUMNs, every weft hearing with the account as before, and a deleted
+    provider nulls the column rather than taking the weft with it."""
+    path = tmp_path / "weft.db"
+    cfg = alembic_config(path)
+    command.upgrade(cfg, "a8d3f1c6e2b9")
+    seed(path)
+    command.upgrade(cfg, "ada7b0125884")
+
+    statements = []
+
+    def record(conn, cursor, sql, *args):
+        statements.append(sql)
+
+    event.listen(Engine, "before_cursor_execute", record)
+    try:
+        command.upgrade(cfg, "c7a2e5d9f3b1")
+    finally:
+        event.remove(Engine, "before_cursor_execute", record)
+
+    assert any("ALTER TABLE wefts ADD COLUMN stt_provider_id" in s for s in statements)
+    assert not any("DROP TABLE wefts" in s or "_alembic_tmp_wefts" in s for s in statements)
+    assert counts(path) == (1, 1, 1)
+
+    db = sqlite3.connect(path)
+    try:
+        assert db.execute("SELECT stt_mode, stt_provider_id, stt_model FROM wefts").fetchall() \
+            == [("account", None, None)]
+        db.execute("PRAGMA foreign_keys = ON")
+        db.execute(
+            "INSERT INTO provider_secrets (id, user_id, name, kind, base_url,"
+            " secret_ciphertext, secret_nonce, key_id, created_at, updated_at)"
+            " VALUES ('e1', 'u1', 'ollama', 'stt', 'http://ollama.test/v1',"
+            " x'00', x'00', 'k1', '2026-01-01', '2026-01-01')"
+        )
+        db.execute("UPDATE wefts SET stt_mode = 'own', stt_provider_id = 'e1'")
+        db.execute("DELETE FROM provider_secrets WHERE id = 'e1'")
+        assert db.execute("SELECT stt_mode, stt_provider_id FROM wefts").fetchall() \
+            == [("own", None)]
+    finally:
+        db.close()
