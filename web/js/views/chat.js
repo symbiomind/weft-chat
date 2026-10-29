@@ -324,12 +324,17 @@ export function renderChat(root) {
     } catch {
       return; // keep whatever was known; a failed read should not hide a working 🎤
     }
-    shelf.show("ptt", stt.available);
-    // Hearing you is on the Pick bar too, as a capability.
+    // Hearing you is on the Pick bar too, as a capability; painting it shows the 🎤.
     renderPickButton();
     if (!pickList.hidden) buildPickMenu();
   }
   window.addEventListener("weft:stt-changed", loadStt);
+
+  /** Whether this pick hears you. ELIZA never does: she has no voice either. */
+  function hears(entry) {
+    if (!entry || entry.builtin) return false;
+    return Boolean(stt?.available);
+  }
 
   /** Labels that last for a whole state rather than a moment. */
   const LASTING = ["listening", "transcribing"];
@@ -1541,7 +1546,7 @@ export function renderChat(root) {
     const bound = answers(entry);
     const marks = entry && !bound
       ? [icon("no-entry", { label: "no engine yet" })]
-      : capabilitiesOf(entry, { hears: Boolean(stt?.available) })
+      : capabilitiesOf(entry, { hears: hears(entry) })
         .map((cap) => icon(cap.icon, { label: cap.label }));
     return el("span", { class: "pick-caps" }, marks);
   }
@@ -1559,6 +1564,7 @@ export function renderChat(root) {
         ? `${current.name}: ${current.model_id} on ${current.provider_name}`
         : `${current.name}: no engine yet`;
     pickCaps.replaceChildren(...capsOf(current).childNodes);
+    shelf.show("ptt", hears(current));
     // The bar's pea wears the ring too, only to be seen: the bell to press is the LED.
     pickLed.classList.toggle("waiting", Boolean(current && waiting[current.id] > 0));
     pickGear.hidden = !current;
