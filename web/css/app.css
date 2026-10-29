@@ -709,7 +709,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 
 /* a switch: the checkbox stays in the label for the keyboard and the screen reader,
    and the pill beside it is what the eye reads */
-#drawer-body label.toggle-row, .tip-extras label.toggle-row{display:flex; align-items:center; gap:10px; padding:12px 14px;
+#drawer-body label.toggle-row, .tip-extras label.toggle-row, .notify label.toggle-row{display:flex; align-items:center; gap:10px; padding:12px 14px;
   border:1px solid var(--edge); background:var(--in); border-radius:12px;
   cursor:pointer; font-size:.92rem; position:relative}
 .toggle-row input{position:absolute; opacity:0; pointer-events:none}
@@ -750,6 +750,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 /* notifications: letters, each in its own weft's colour, on a neutral page */
 .notes-head{display:flex; justify-content:flex-end}
 .notes-head:has(> [hidden]:only-child){display:none}
+.notify{display:flex; flex-direction:column; gap:6px; margin-top:12px}
 .panel .rows > .row.note{align-items:flex-start; border-left:3px solid var(--weft-a)}
 .note-body{margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.5}
 .note .bubble-pics{margin:8px 0 0}

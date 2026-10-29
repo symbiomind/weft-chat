@@ -18,6 +18,7 @@ import { dress, pairOf } from "../colours.js";
 import { PURPOSE, panelHead } from "../panels.js";
 import * as providersApi from "../providers.js";
 import { picturesIn } from "../references.js";
+import { notifySwitch } from "../notify.js";
 
 /** "Sat 18 Oct, 1:12 pm": a report is a moment, so the day and the time. */
 function when(iso) {
@@ -159,6 +160,7 @@ export function renderNotifications(panels, { wefts, onChanged, onOpenWeft, open
     el("div", { class: "panel-body" }, [
       el("div", { class: "notes-head" }, [dismissAll]),
       list,
+      notifySwitch(),
     ]),
   ]);
 

@@ -79,6 +79,7 @@ import { createThreads, mergeStoreRead, threadKey } from "../threads.js";
 import { createTutor } from "../tutor.js";
 import { getState, logout, subscribe } from "../session.js";
 import * as theme from "../theme.js";
+import * as notify from "../notify.js";
 import { renderProviders } from "./providers.js";
 import { renderWeft, renderWefts } from "./wefts.js";
 import { accountCard, renderAccount } from "./account.js";
@@ -136,6 +137,9 @@ export function renderChat(root) {
    * server, so a window opened at lunch finds the morning's on its first ask.
    */
   let waiting = {};
+
+  /** Whether `waiting` has been asked for yet: what is already there on load is not news. */
+  let counted = false;
 
   /**
    * Context, one array per pick — and, for a pick that asks, a copy on this device.
@@ -1078,9 +1082,10 @@ export function renderChat(root) {
 
   let polling = false;
 
-  /** Ask how many notifications are waiting, and repaint the bells if that changed. */
+  /** Ask how many notifications are waiting, and repaint the bells if that changed.
+   *  A hidden window stops asking, unless it has the device's notifications to ring. */
   async function pollWaiting() {
-    if (polling || document.visibilityState === "hidden") return;
+    if (polling || (document.visibilityState === "hidden" && !notify.isOn())) return;
     polling = true;
     try {
       const { wefts } = await providersApi.notificationCounts();
@@ -1094,7 +1099,12 @@ export function renderChat(root) {
 
   function setWaiting(next) {
     const key = (counts) => JSON.stringify(Object.entries(counts).sort());
-    if (key(next) === key(waiting)) return;
+    if (key(next) === key(waiting)) {
+      counted = true;
+      return;
+    }
+    if (counted) ringFor(next);
+    counted = true;
     waiting = next;
     paintLed();
     renderPickButton();
@@ -1102,6 +1112,17 @@ export function renderChat(root) {
     drawerBody.querySelector("[data-screen=notifications] .count")?.remove();
     const badge = waitingBadge();
     if (badge) drawerBody.querySelector("[data-screen=notifications] > span")?.append(badge);
+  }
+
+  /** The device's notification, for each weft with more waiting than last time, when
+   *  nobody is looking at this window. Fewer waiting is a dismissal, never news. */
+  function ringFor(next) {
+    if (document.visibilityState === "visible" && document.hasFocus()) return;
+    for (const [id, count] of Object.entries(next)) {
+      if (count <= (waiting[id] ?? 0)) continue;
+      const entry = wefts().find((w) => String(w.id) === id);
+      notify.ring(id, entry?.name ?? "Weft", count);
+    }
   }
 
   function choose(entry) {
@@ -2212,6 +2233,11 @@ export function renderChat(root) {
   loadStt();
   pollWaiting();
   const notificationsTimer = setInterval(pollWaiting, NOTIFICATIONS_POLL_MS);
+  notify.start();
+  // A tap on the device's notification lands here, through the service worker.
+  const unlistenNotify = notify.onOpen(() => {
+    if (panels.topPage() !== "notifications") openNotifications();
+  });
   window.addEventListener("focus", pollWaiting);
 
   // A canvas samples CSS variables once; the stylesheet repaints itself and the canvas
@@ -2235,6 +2261,7 @@ export function renderChat(root) {
   return function teardown() {
     clearInterval(pingTimer);
     clearInterval(notificationsTimer);
+    unlistenNotify();
     window.removeEventListener("focus", pollWaiting);
     window.removeEventListener("focus", pingSession);
     donut.stop();

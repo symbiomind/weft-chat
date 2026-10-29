@@ -78,6 +78,7 @@
 import { dress, pairOf, themePair } from "../colours.js";
 import { el, rowButton } from "../dom.js";
 import { panelHead } from "../panels.js";
+import { notifySwitch } from "../notify.js";
 import * as api from "../providers.js";
 
 /** The numbers a weft is born with, mirrored from app/models.py so the dropdown can
@@ -1051,11 +1052,13 @@ export function renderWeft(panels, {
       el("h2", { class: "section-title", text: "Agent door" }),
       el("p", {
         class: "hint",
-        text: "Lets this weft's agent show you pictures in its replies, through " +
-          "Weft's MCP server. An invite or a new key replaces the old key.",
+        text: "Lets this weft's agent show you pictures in its replies and leave you " +
+          "notifications, through Weft's MCP server. An invite or a new key replaces " +
+          "the old key.",
       }),
       now,
       el("div", { class: "row-confirm" }, [invite, close]),
+      notifySwitch(),
       el("details", { class: "advanced" }, [
         el("summary", { text: "Advanced" }),
         el("p", {
