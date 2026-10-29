@@ -177,6 +177,56 @@ async def test_a_failing_provider_is_a_502(csrf_client, session, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_refused_recording_is_a_415(csrf_client, session, monkeypatch):
+    """415 is the browser's cue to send the same recording again as wav."""
+    await signed_in(csrf_client, session)
+    await choose(csrf_client, await add_stt(csrf_client))
+
+    async def refused(*args, **kwargs):
+        raise upstream.RecordingRefused("ollama.lan answered 400: Failed to load audio file")
+
+    monkeypatch.setattr(upstream, "transcribe", refused)
+    response = await record(csrf_client)
+    assert response.status_code == 415
+    assert "Failed to load" in response.json()["detail"]
+
+
+def transcription_server(monkeypatch, answer):
+    real = httpx.AsyncClient
+    monkeypatch.setattr(
+        upstream.httpx, "AsyncClient",
+        lambda **kw: real(transport=httpx.MockTransport(lambda request: answer), **kw),
+    )
+
+
+@pytest.mark.asyncio
+async def test_a_400_for_opus_is_a_refused_recording(monkeypatch):
+    """Ollama reads wav and mp3 only, and says so with a 400 that names neither."""
+    transcription_server(monkeypatch, httpx.Response(400, json={"error": {
+        "message": "Failed to load image or audio file",
+    }}))
+
+    with pytest.raises(upstream.RecordingRefused):
+        await upstream.transcribe(
+            "http://ollama.lan/v1", "tok", audio=b"OPUSDATA",
+            content_type="audio/webm", model="m",
+        )
+
+
+@pytest.mark.asyncio
+async def test_a_400_for_wav_is_a_plain_failure(monkeypatch):
+    """wav is the fallback. A server that refuses that too has nothing left to try."""
+    transcription_server(monkeypatch, httpx.Response(400, text="no such model"))
+
+    with pytest.raises(upstream.UpstreamError, match="no such model") as caught:
+        await upstream.transcribe(
+            "http://ollama.lan/v1", "tok", audio=b"RIFFDATA",
+            content_type="audio/wav", model="m",
+        )
+    assert not isinstance(caught.value, upstream.RecordingRefused)
+
+
+@pytest.mark.asyncio
 async def test_transcribe_posts_multipart_the_openai_way(monkeypatch):
     seen = {}
 

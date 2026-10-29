@@ -217,6 +217,11 @@ async def transcribe(
             audio=audio, content_type=content_type,
             model=user.stt_model or DEFAULT_MODEL, language=user.stt_language,
         )
+    except upstream.RecordingRefused as exc:
+        # 415 tells the browser to send the same words again as wav.
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail=str(exc),
+        ) from exc
     except upstream.UpstreamError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     return TranscriptOut(text=text)

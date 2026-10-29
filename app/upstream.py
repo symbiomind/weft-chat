@@ -781,6 +781,17 @@ def transcriptions_url(base_url: str) -> str:
     return f"{base_url.rstrip('/')}/audio/transcriptions"
 
 
+#: The statuses a server refuses a recording it cannot decode with.
+RECORDING_REFUSED_STATUSES = frozenset({400, 415, 422})
+
+#: What every server that takes a recording at all can read.
+WAV_TYPES = frozenset({"audio/wav", "audio/x-wav", "audio/wave"})
+
+
+class RecordingRefused(UpstreamError):
+    """The server would not take a recording that was not wav; wav may yet work."""
+
+
 async def transcribe(
     base_url: str, secret: str, *, audio: bytes, content_type: str,
     model: str, language: str | None = None,
@@ -821,6 +832,13 @@ async def transcribe(
         raise UpstreamError(
             f"{base_url} rejected the token ({response.status_code}). "
             f"Check the bearer on this speech-to-text provider."
+        )
+    if response.status_code in RECORDING_REFUSED_STATUSES and content_type not in WAV_TYPES:
+        # Ollama: "Failed to load image or audio file" for webm, ogg and flac alike. A
+        # 400 cannot say whether it was the container or something else, so the browser
+        # finds out by sending wav once; a 400 about the model comes back again.
+        raise RecordingRefused(
+            f"{base_url} answered {response.status_code}: {_brief(response.text)}"
         )
     if response.status_code >= 400:
         raise UpstreamError(

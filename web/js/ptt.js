@@ -12,7 +12,9 @@
  *
  * WHAT IS RECORDED is whatever the browser does best: Opus in WebM on Chrome and
  * Android, AAC in MP4 on Safari. Whisper decodes either, and the server passes the
- * container's type along with the bytes.
+ * container's type along with the bytes. Some servers read only wav and mp3 (Ollama's
+ * transcription endpoint does); the server answers 415 for those, and the recording
+ * goes again as 16 kHz mono wav, which is what every recording goes as from then on.
  *
  * This module owns the petal's pointer events outright — they stop here, so the shelf
  * never mistakes a slide-to-cancel for its own swipe-down-to-close.
@@ -24,6 +26,48 @@ const MIN_MS = 450;
 const MAX_MS = 120_000;
 /** How far a finger may wander before the hold counts as cancelled. */
 const CANCEL_PX = 64;
+/** What speech recognisers listen at. Two minutes of it is under 4 MB. */
+const WAV_RATE = 16_000;
+
+/**
+ * Set once a provider has refused a recording and taken the same one as wav. For the
+ * life of the page: wav is several times the size of Opus, but every server reads it,
+ * so a switch back to a provider that would have taken Opus costs bytes, not words.
+ */
+let sendWav = false;
+
+/** A recording as 16-bit mono wav at WAV_RATE. Decoding resamples; rendering downmixes. */
+async function toWav(blob) {
+  const decoded = await new OfflineAudioContext(1, 1, WAV_RATE)
+    .decodeAudioData(await blob.arrayBuffer());
+  const offline = new OfflineAudioContext(1, decoded.length, WAV_RATE);
+  const source = offline.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offline.destination);
+  source.start();
+  const samples = (await offline.startRendering()).getChannelData(0);
+
+  const view = new DataView(new ArrayBuffer(44 + samples.length * 2));
+  const text = (at, words) => [...words].forEach((c, i) => view.setUint8(at + i, c.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  text(8, "WAVE");
+  text(12, "fmt ");
+  view.setUint32(16, 16, true);         // fmt chunk size
+  view.setUint16(20, 1, true);          // PCM
+  view.setUint16(22, 1, true);          // mono
+  view.setUint32(24, WAV_RATE, true);
+  view.setUint32(28, WAV_RATE * 2, true); // bytes per second
+  view.setUint16(32, 2, true);          // bytes per frame
+  view.setUint16(34, 16, true);         // bits per sample
+  text(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  samples.forEach((sample, i) => {
+    const clipped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(44 + i * 2, clipped < 0 ? clipped * 0x8000 : clipped * 0x7fff, true);
+  });
+  return new Blob([view], { type: "audio/wav" });
+}
 
 /** The first container this browser can record, in order of preference. */
 function recordingType() {
@@ -161,6 +205,20 @@ export function createPushToTalk(petal, {
     recorder.stop();
   }
 
+  /** The recording as recorded, or as wav when the provider will not read it. */
+  async function transcribeEither(blob) {
+    if (!sendWav) {
+      try {
+        return await transcribe(blob);
+      } catch (err) {
+        if (err.status !== 415) throw err;
+      }
+    }
+    const answer = await transcribe(await toWav(blob));
+    sendWav = true;
+    return answer;
+  }
+
   async function finished() {
     const type = recorder.mimeType || recordingType() || "audio/webm";
     recorder = null;
@@ -180,7 +238,7 @@ export function createPushToTalk(petal, {
     onBusy?.(true);
     onHint?.("transcribing…");
     try {
-      const { text } = await transcribe(blob);
+      const { text } = await transcribeEither(blob);
       if (text) onText?.(text);
       else onHint?.("heard nothing");
     } catch (err) {
