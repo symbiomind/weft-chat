@@ -179,6 +179,9 @@ export function renderWeft(panels, {
   /** @type {{id: string, name: string}[]} */
   let speechProviders = [];
 
+  /** Set by the Hearing section: re-render its dropdown once providers are known. */
+  let offerEars = () => {};
+
   /** The session stores the History dropdown can offer, once load() has them. */
   let stores = [];
   /** Set by the History section: re-render its dropdown once the stores are known. */
@@ -1339,6 +1342,122 @@ export function renderWeft(panels, {
     silence.hidden = !weft.has_voice;
   }
 
+  // ---- hearing ------------------------------------------------------------
+
+  /**
+   * The Hearing section: which ears push to talk uses in this weft. The account's by
+   * default; a provider of its own, to try a new server beside the usual one; or none.
+   * Language and the rest stay in the account's settings: they are about the user.
+   */
+  function renderHearingSection() {
+    const hearError = el("p", { class: "form-error", role: "alert", hidden: "" });
+    const choice = el("select", { id: "weft-ears" });
+    const models = el("datalist", { id: "weft-ears-models" });
+    const model = el("input", {
+      type: "text", id: "weft-ears-model", list: "weft-ears-models", autocomplete: "off",
+      autocapitalize: "none", spellcheck: "false", placeholder: "whisper-1",
+    });
+    const modelPart = el("div", {}, [
+      el("label", { for: "weft-ears-model", text: "model" }),
+      model,
+      models,
+      el("p", { class: "hint", text: "Blank sends whisper-1. Many self-hosted servers ignore this and use whatever they loaded." }),
+    ]);
+    const note = el("p", { class: "hint" });
+
+    /** @type {{id: string, name: string}[]} */
+    let hearing = [];
+    /** The account's provider, by name, or null when it has none. */
+    let accountEars = null;
+
+    /** "account", "off", or the id of a provider of its own. "" is a deleted one. */
+    function chosen() {
+      if (weft.stt_mode === "off") return "off";
+      if (weft.stt_mode === "own") return weft.stt_provider_id ?? "";
+      return "account";
+    }
+
+    function paint() {
+      const options = [
+        el("option", {
+          value: "account",
+          text: accountEars ? `your default: ${accountEars}` : "your default (none chosen)",
+        }),
+        ...hearing.map((p) => el("option", { value: p.id, text: p.name })),
+        el("option", { value: "off", text: "off" }),
+      ];
+      if (chosen() === "") {
+        options.unshift(el("option", { value: "", text: "its own (deleted)", disabled: "" }));
+      }
+      choice.replaceChildren(...options);
+      choice.value = chosen();
+      model.value = weft.stt_model ?? "";
+      modelPart.hidden = weft.stt_mode !== "own" || !weft.stt_provider_id;
+      note.textContent = chosen() === ""
+        ? "Its own speech-to-text provider was deleted, so it hears nothing. Choose another."
+        : weft.stt_mode === "off"
+          ? "Push to talk is off for this weft."
+          : weft.stt_mode === "own"
+            ? "Hears through its own provider. Language and the rest come from your settings."
+            : accountEars
+              ? "Hears through the provider in your settings, like every weft that has not chosen."
+              : "Choose a speech-to-text provider in your settings, or one of its own here.";
+    }
+
+    async function fillModels(providerId) {
+      models.replaceChildren();
+      try {
+        const { models: ids } = await api.sttModels(providerId);
+        for (const id of ids) models.append(el("option", { value: id }));
+      } catch {
+        /* typing a model name still works */
+      }
+    }
+
+    async function save(change) {
+      hearError.hidden = true;
+      try {
+        changed(await api.setWeftEars(weftId, change));
+      } catch (err) {
+        hearError.textContent = err.detail || err.message || "Could not save that.";
+        hearError.hidden = false;
+      }
+      paint();
+    }
+
+    choice.addEventListener("change", () => {
+      const value = choice.value;
+      if (value === "account" || value === "off") {
+        save({ mode: value });
+        return;
+      }
+      // A different provider's model names mean nothing to this one.
+      const keep = value === weft.stt_provider_id ? model.value.trim() : "";
+      fillModels(value);
+      save({ mode: "own", providerId: value, model: keep });
+    });
+    model.addEventListener("change", () => save({
+      mode: "own", providerId: weft.stt_provider_id, model: model.value.trim(),
+    }));
+
+    offerEars = (providers, settings) => {
+      hearing = providers;
+      accountEars = settings?.available ? settings.provider_name : null;
+      if (weft.stt_mode === "own" && weft.stt_provider_id) fillModels(weft.stt_provider_id);
+      paint();
+    };
+    paint();
+
+    return el("div", { class: "panel-form panel-section", "data-section": "hearing" }, [
+      el("h2", { class: "section-title", text: "Hearing" }),
+      el("label", { for: "weft-ears", text: "hear me with" }),
+      choice,
+      note,
+      modelPart,
+      hearError,
+    ]);
+  }
+
   // ---- deleting -----------------------------------------------------------
 
   function renderDeleteSection() {
@@ -1535,8 +1654,12 @@ export function renderWeft(panels, {
 
   async function load() {
     try {
-      const providers = await api.listProviders();
+      const [providers, sttSettings] = await Promise.all([
+        api.listProviders(),
+        api.sttSettings().catch(() => null),
+      ]);
       speechProviders = providers.filter((p) => p.kind === "tts");
+      offerEars(providers.filter((p) => p.kind === "stt"), sttSettings);
       stores = providers.filter((p) => p.kind === "session");
       offerChatProviders(providers.filter((p) => p.kind === "llm"));
       offerStores();
@@ -1580,6 +1703,7 @@ export function renderWeft(panels, {
         status,
         body,
       ]),
+      renderHearingSection(),
       renderHeadersSection(),
       renderDoorSection(),
       renderDeleteSection(),

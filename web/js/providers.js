@@ -118,6 +118,18 @@ export function setWeftVoice(id, { ttsProviderId, ttsModel, ttsVoice }) {
 }
 
 /**
+ * Choose a weft's ears: `mode` is "account", "own" or "off". `providerId` and `model`
+ * are read only with "own"; the others keep whatever the weft had chosen before.
+ */
+export function setWeftEars(id, { mode, providerId, model }) {
+  return apiFetch(weftPath(id, "/stt"), jsonBody("PUT", {
+    mode,
+    provider_id: providerId ?? null,
+    model: model || null,
+  }));
+}
+
+/**
  * Say where a weft's thread is kept, how much of it is sent upstream, and how much of
  * it the window holds. All of it together, because the server replaces the set.
  * `sendTurns` and `windowTurns` count TURNS: something you said and the answer to it.
@@ -278,11 +290,13 @@ export function sttModels(providerId) {
 }
 
 /**
- * Turn one recording into words with the user's chosen provider. The body is the
- * recording itself, in whatever container the browser recorded it in.
+ * Turn one recording into words with the ears of `weftId`, or the account's without
+ * one. The body is the recording itself, in whatever container the browser recorded it
+ * in. The server chooses the provider; the browser only says which weft.
  */
-export function transcribe(blob) {
-  return apiFetch("/api/stt/transcribe", {
+export function transcribe(blob, weftId = null) {
+  const query = weftId ? `?${new URLSearchParams({ weft_id: weftId })}` : "";
+  return apiFetch(`/api/stt/transcribe${query}`, {
     method: "POST",
     headers: { "Content-Type": blob.type || "audio/webm" },
     body: blob,

@@ -14,7 +14,7 @@
  * Android, AAC in MP4 on Safari. Whisper decodes either, and the server passes the
  * container's type along with the bytes. Some servers read only wav and mp3 (Ollama's
  * transcription endpoint does); the server answers 415 for those, and the recording
- * goes again as 16 kHz mono wav, which is what every recording goes as from then on.
+ * goes again as 16 kHz mono wav, which is what that provider gets from then on.
  *
  * This module owns the petal's pointer events outright — they stop here, so the shelf
  * never mistakes a slide-to-cancel for its own swipe-down-to-close.
@@ -30,11 +30,23 @@ const CANCEL_PX = 64;
 const WAV_RATE = 16_000;
 
 /**
- * Set once a provider has refused a recording and taken the same one as wav. For the
- * life of the page: wav is several times the size of Opus, but every server reads it,
- * so a switch back to a provider that would have taken Opus costs bytes, not words.
+ * The providers that refused a recording and took the same one as wav, by id. For the
+ * life of the page, and per provider: wav is several times the size of Opus, so one
+ * weft trying a wav-only server should not make every other weft upload wav too.
  */
-let sendWav = false;
+const wavFor = new Set();
+
+/**
+ * The provider a pick's recordings go to, or null when it does not hear you: its own,
+ * the account's (`account` is GET /api/stt), or none. The built-in pick never hears:
+ * it has no voice either. A weft whose own provider was deleted hears nothing, rather
+ * than quietly the account's.
+ */
+export function earsOf(weft, account) {
+  if (!weft || weft.builtin || weft.stt_mode === "off") return null;
+  if (weft.stt_mode === "own") return weft.stt_provider_id ?? null;
+  return account?.available ? account.provider_id : null;
+}
 
 /** A recording as 16-bit mono wav at WAV_RATE. Decoding resamples; rendering downmixes. */
 async function toWav(blob) {
@@ -81,6 +93,7 @@ function recordingType() {
 /**
  * @param petal       the 🎤 button.
  * @param transcribe  `(blob) => Promise<{text}>`.
+ * @param ears        `()` the id of the provider a recording now goes to, or null.
  * @param onStart     `(level)` when recording begins; `level()` is the mic's RMS now.
  * @param onRelease   `()` from inside the pointerup that ends a recording, so the
  *                    caller can do what needs a tap. Not on a cancel.
@@ -91,7 +104,7 @@ function recordingType() {
  * @param onError     `(message)` when it went wrong in a way worth a bubble.
  */
 export function createPushToTalk(petal, {
-  transcribe, onStart, onRelease, onStop, onBusy, onText, onHint, onError,
+  transcribe, ears, onStart, onRelease, onStop, onBusy, onText, onHint, onError,
 } = {}) {
   /** "idle" | "opening" | "recording" | "transcribing" */
   let state = "idle";
@@ -207,7 +220,8 @@ export function createPushToTalk(petal, {
 
   /** The recording as recorded, or as wav when the provider will not read it. */
   async function transcribeEither(blob) {
-    if (!sendWav) {
+    const provider = ears?.() ?? null;
+    if (!wavFor.has(provider)) {
       try {
         return await transcribe(blob);
       } catch (err) {
@@ -215,7 +229,7 @@ export function createPushToTalk(petal, {
       }
     }
     const answer = await transcribe(await toWav(blob));
-    sendWav = true;
+    wavFor.add(provider);
     return answer;
   }
 

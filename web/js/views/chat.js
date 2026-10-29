@@ -71,7 +71,7 @@ import {
   ELIZA, ELIZA_GREETING, ELIZA_TIP, THINGS_TIP, answers, elizaBeckons, elizaHidden, hideEliza,
 } from "../eliza.js";
 import * as comfort from "../comfort.js";
-import { createPushToTalk } from "../ptt.js";
+import { createPushToTalk, earsOf } from "../ptt.js";
 import { createSpeaker } from "../speaker.js";
 import * as audiodebug from "../audiodebug.js";
 import * as speech from "../speech.js";
@@ -330,17 +330,15 @@ export function renderChat(root) {
   }
   window.addEventListener("weft:stt-changed", loadStt);
 
-  /** Whether this pick hears you. ELIZA never does: she has no voice either. */
-  function hears(entry) {
-    if (!entry || entry.builtin) return false;
-    return Boolean(stt?.available);
-  }
+  /** Whether this pick hears you, by its own ears or the account's. */
+  const hears = (entry) => Boolean(earsOf(entry, stt));
 
   /** Labels that last for a whole state rather than a moment. */
   const LASTING = ["listening", "transcribing"];
 
   const ptt = createPushToTalk(shelf.petal("ptt"), {
-    transcribe: (blob) => providersApi.transcribe(blob),
+    transcribe: (blob) => providersApi.transcribe(blob, current?.builtin ? null : current?.id),
+    ears: () => earsOf(current, stt),
     onStart: (level) => {
       // Talking over the weft is how you interrupt it, as sending is.
       hush();
