@@ -1114,10 +1114,12 @@ export function renderChat(root) {
     if (badge) drawerBody.querySelector("[data-screen=notifications] > span")?.append(badge);
   }
 
-  /** The device's notification, for each weft with more waiting than last time, when
-   *  nobody is looking at this window. Fewer waiting is a dismissal, never news. */
+  /** The device's notification, for each weft with more waiting than last time. Rung
+   *  with the window in front too: deep in one weft's chat, another weft's bell is easy
+   *  to miss. Not while the notifications page is open, which is already the reading
+   *  of them. Fewer waiting is a dismissal, never news. */
   function ringFor(next) {
-    if (document.visibilityState === "visible" && document.hasFocus()) return;
+    if (document.visibilityState === "visible" && panels.topPage() === "notifications") return;
     for (const [id, count] of Object.entries(next)) {
       if (count <= (waiting[id] ?? 0)) continue;
       const entry = wefts().find((w) => String(w.id) === id);

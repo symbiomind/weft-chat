@@ -1,8 +1,9 @@
 /* Weft — the system notification: the bell, rung outside the window.
  *
- * When a weft's agent leaves something through its door and this window is not being
- * looked at, the device says so the way any app does: a notification with the OS's own
- * sound, which needs no tap first, unlike audio played by the page.
+ * When a weft's agent leaves something through its door, the device says so the way
+ * any app does: a notification with the OS's own sound, which needs no tap first,
+ * unlike audio played by the page. Even with Weft in front, because deep in one weft's
+ * chat another's bell is easy to miss; not while the notifications page is open.
  *
  * **Opt in, per device.** Nothing asks for permission until the user turns the switch
  * on, and the browser only shows its prompt from inside that tap anyway. The switch is
@@ -120,8 +121,8 @@ export function onOpen(handler) {
 const HINTS = {
   on: "On for this device, for every weft. Only while Weft is open in a tab, even a " +
     "hidden one. It says which weft and how many, never what they say.",
-  off: "Have this device tell you when a weft's agent leaves you something while you " +
-    "are looking elsewhere. One switch for every weft.",
+  off: "Have this device tell you when a weft's agent leaves you something, even " +
+    "while you are chatting with another. One switch for every weft.",
   blocked: "This browser has been told not to allow Weft's notifications. Allow them in " +
     "the site's settings (the icon beside the address), then come back here.",
   unsupported: "This browser cannot do it here. It needs a secure (https) address, and " +
