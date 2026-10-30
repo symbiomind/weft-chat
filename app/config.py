@@ -108,6 +108,20 @@ DEFAULTS: dict[str, Any] = {
         "max_connections_per_user": 8,
         "sweep_interval_seconds": 60,
     },
+    "push": {
+        "enabled": False,
+        "key": "",
+        "subject": "",
+        # The push services a subscription may point at. The server POSTs to whatever
+        # endpoint a browser hands it, so without this a signed-in user could aim it
+        # at any host this server can reach. A host matches itself or any subdomain.
+        "allowed_hosts": [
+            "fcm.googleapis.com",                   # Chrome, Edge on Android, Brave
+            "updates.push.services.mozilla.com",    # Firefox
+            "push.apple.com",                       # Safari, and iPhone home-screen apps
+            "notify.windows.com",                   # Edge on Windows
+        ],
+    },
     "speech": {
         # Spoken clips are kept this long since last heard, so a reply can be replayed
         #. 0 turns the cache off. See app/speech_cache.py.
@@ -330,6 +344,45 @@ def vault_old_keys() -> dict[str, bytes]:
             continue
         out[key_id] = decoded
     return out
+
+
+def push_key() -> bytes | None:
+    """The VAPID private key's 32-byte scalar, or None if push is off, the key absent,
+    or malformed. Like the vault: a bad key turns off push and nothing else."""
+    if not get("push.enabled"):
+        return None
+    raw = str(get("push.key") or "")
+    if not raw:
+        logger.error(
+            "push.enabled is true but push.key is empty — push is UNAVAILABLE. "
+            "Generate one with: python3 scripts/make_push_key.py"
+        )
+        return None
+    try:
+        key = base64.urlsafe_b64decode(_pad_b64(raw))
+    except (binascii.Error, ValueError) as exc:
+        logger.error("push.key is not valid base64 (%s) — push is UNAVAILABLE.", exc)
+        return None
+    if len(key) != SECRET_BYTES:
+        logger.error(
+            "push.key decodes to %d bytes, expected %d — push is UNAVAILABLE.",
+            len(key), SECRET_BYTES,
+        )
+        return None
+    return key
+
+
+def push_subject() -> str:
+    """Who the push services may contact: push.subject, or else public_origin."""
+    return str(get("push.subject") or "").strip() or public_origin()
+
+
+def push_allowed_hosts() -> list[str]:
+    hosts = get("push.allowed_hosts") or []
+    if not isinstance(hosts, list):
+        logger.error("push.allowed_hosts must be a list of host names — allowing none.")
+        return []
+    return [str(h).strip().lower().strip(".") for h in hosts if str(h).strip()]
 
 
 def auth_available() -> bool:

@@ -84,6 +84,22 @@ server:
     # what was kept.
     cache_ttl_hours: 168                 # 7 days
 
+  push:
+    # Web Push: a phone is told about a notification while Weft is closed. Off by
+    # default, because it goes through the browser vendor's push service (Google for
+    # Chrome, Mozilla for Firefox, Apple for Safari). They cannot read the message,
+    # which is encrypted to the device, but they do see that one was sent, to which
+    # device, and when. Without it, a device is still told while Weft is open in a tab.
+    enabled: false
+    # The VAPID private key: what proves a push is from this server. Generate one with
+    #   python3 scripts/make_push_key.py
+    # and keep it in the environment, not here. A new key cuts off every device that
+    # subscribed with the old one; each subscribes again on its next visit.
+    key: "${WEFT_PUSH_KEY}"
+    # Who to contact about this server's pushes, for the push services: a mailto: or
+    # https: URL. Empty means public_origin.
+    subject: ""
+
   websocket:
     auth_deadline_seconds: 5             # send the auth frame within this, or be closed
     heartbeat_seconds: 30

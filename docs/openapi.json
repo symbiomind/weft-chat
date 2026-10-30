@@ -277,6 +277,20 @@
         "title": "EarsIn",
         "type": "object"
       },
+      "EndpointIn": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 1024,
+            "title": "Endpoint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "endpoint"
+        ],
+        "title": "EndpointIn",
+        "type": "object"
+      },
       "EngineIn": {
         "description": "Bind a weft to a provider and a model, or unbind it.\n\nBoth or neither, like the voice: a provider with no model has nothing to ask for,\nand a model with no provider has nowhere to be asked.",
         "properties": {
@@ -463,6 +477,26 @@
           "expires_in"
         ],
         "title": "InviteOut",
+        "type": "object"
+      },
+      "KeysIn": {
+        "properties": {
+          "auth": {
+            "maxLength": 64,
+            "title": "Auth",
+            "type": "string"
+          },
+          "p256dh": {
+            "maxLength": 128,
+            "title": "P256Dh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "p256dh",
+          "auth"
+        ],
+        "title": "KeysIn",
         "type": "object"
       },
       "LoginRequest": {
@@ -820,6 +854,30 @@
         "title": "ProviderPatch",
         "type": "object"
       },
+      "PushOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "public_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Key"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "PushOut",
+        "type": "object"
+      },
       "RestartIn": {
         "properties": {
           "what": {
@@ -1084,6 +1142,25 @@
           "available"
         ],
         "title": "SttOut",
+        "type": "object"
+      },
+      "SubscriptionIn": {
+        "description": "As the browser's ``PushSubscription.toJSON()`` gives it, less what is not used.",
+        "properties": {
+          "endpoint": {
+            "maxLength": 1024,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "keys": {
+            "$ref": "#/components/schemas/KeysIn"
+          }
+        },
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "title": "SubscriptionIn",
         "type": "object"
       },
       "SwitchIn": {
@@ -2698,6 +2775,96 @@
         "summary": "List Voices",
         "tags": [
           "providers"
+        ]
+      }
+    },
+    "/api/push": {
+      "get": {
+        "description": "Whether this server pushes, and the key to subscribe with if it does.",
+        "operationId": "availability_api_push_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Availability",
+        "tags": [
+          "push"
+        ]
+      }
+    },
+    "/api/push/subscription": {
+      "delete": {
+        "description": "Forget this device's subscription. Nothing to forget is not an error: the\nswitch going off must always work.",
+        "operationId": "unsubscribe_api_push_subscription_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndpointIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unsubscribe",
+        "tags": [
+          "push"
+        ]
+      },
+      "put": {
+        "description": "Keep this device's subscription. Sent again on every visit, so a browser that\nrenewed its subscription, or a device signed in again, stays current.",
+        "operationId": "subscribe_api_push_subscription_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscriptionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Subscribe",
+        "tags": [
+          "push"
         ]
       }
     },

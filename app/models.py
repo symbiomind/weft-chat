@@ -780,6 +780,39 @@ class Notification(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+
+class PushSubscription(Base):
+    """One device's Web Push subscription: where to send, and the keys to seal it with.
+
+    Belongs to the signed-in device that made it, not only to the user. A device signed
+    out, from itself or from another, stops getting pushes at once (the send skips a
+    revoked or expired session), and the row goes with the session when the
+    housekeeping sweep deletes it. So a shared browser never rings for whoever used it
+    last.
+
+    The endpoint is a secret of sorts: with the keys it is how to reach that phone. It
+    is never logged and never sent back to the client.
+    """
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    session_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("auth_sessions.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    #: Unique: subscribing again from the same browser moves the row, never doubles it.
+    endpoint: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
+    #: The browser's public key and auth secret, base64url, as it gave them.
+    p256dh: Mapped[str] = mapped_column(String(128), nullable=False)
+    auth: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+    #: The last time the push service took a message for it. Null until the first.
+    last_ok_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
 def weft_name_key(name: str) -> str:
     """A weft's name as compared: runs of whitespace made one space, case folded."""
     return " ".join(name.split()).casefold()

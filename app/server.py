@@ -248,6 +248,7 @@ def create_app() -> FastAPI:
     from app.routes import door as door_routes
     from app.routes import notifications as notification_routes
     from app.routes import providers as provider_routes
+    from app.routes import push as push_routes
     from app.routes import sessions as session_routes
     from app.routes import speech as speech_routes
     from app.routes import stt as stt_routes
@@ -264,6 +265,7 @@ def create_app() -> FastAPI:
     app.include_router(stt_routes.router)
     app.include_router(tip_routes.router)
     app.include_router(notification_routes.router)
+    app.include_router(push_routes.router)
     app.include_router(door_routes.router)
     app.include_router(door_routes.upload_router)
 

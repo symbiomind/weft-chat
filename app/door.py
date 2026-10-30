@@ -43,7 +43,7 @@ from datetime import datetime
 
 from sqlalchemy import select
 
-from app import attachments, config, db, notifications
+from app import attachments, config, db, notifications, push
 from app.models import User, Weft, WeftKey, utcnow
 from app.refresh import hash_token
 
@@ -412,6 +412,8 @@ def build_server():
             except (notifications.TooMany, ValueError) as exc:
                 raise ToolError(str(exc)) from exc
             waiting = await notifications.waiting(session, caller.weft_id)
+        # The user's devices, rung in the background: the agent does not wait on it.
+        push.announce(caller.user_id, caller.weft_id)
         return (
             f"Delivered: notification {note.id}. Your user sees it when they next open "
             f"Weft; there is no need to send it again. {waiting} from this weft waiting."

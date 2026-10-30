@@ -152,6 +152,7 @@ async def client(app_config, session):
     from app.routes import stt as stt_routes
     from app.routes import tips as tip_routes
     from app.routes import notifications as notification_routes
+    from app.routes import push as push_routes
 
     app = FastAPI()
     app.include_router(attachment_routes.router)
@@ -164,6 +165,7 @@ async def client(app_config, session):
     app.include_router(stt_routes.router)
     app.include_router(tip_routes.router)
     app.include_router(notification_routes.router)
+    app.include_router(push_routes.router)
 
     async def _session_override():
         yield session
