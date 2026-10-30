@@ -46,7 +46,7 @@ from app.models import Weft
 logger = logging.getLogger(__name__)
 
 #: Bumped when the drawing changes, so every icon is drawn again.
-VERSION = "v1"
+VERSION = "v2"
 
 #: The icon's size. What Android asks for, and plenty for a desktop notification.
 SIZE = 192
@@ -57,9 +57,9 @@ SUPERSAMPLE = 4
 #: The theme's pair and floor (web/css/theme.css), for a weft that wears the theme.
 THEME_A, THEME_B, FLOOR = "#7fb069", "#5d5d81", "#12141a"
 
-#: The ring's radius as a share of the icon. Smaller than the chat window's, so the
-#: whole donut fits with its swing.
-RADIUS = 0.36
+#: The ring's radius as a share of the icon: the chat window's own, 0.42 of the long
+#: side, so the tips of the swing are clipped by the edge just as they are on screen.
+RADIUS = 0.42
 
 #: The stroke, thicker than the chat window's, so it still reads at thumbnail size.
 STROKE = 1.4
