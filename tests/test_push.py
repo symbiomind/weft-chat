@@ -171,6 +171,7 @@ async def test_a_subscription_must_point_at_a_push_service(door_client, session,
 async def test_apple_and_mozilla_are_push_services_too(door_client, session, push_on):
     await weft_with_key(door_client, session)
     for endpoint in ("https://web.push.apple.com/abc",
+                     "https://jmt17.google.com/fcm/send/abc",
                      "https://updates.push.services.mozilla.com/wpush/v2/abc"):
         assert (await subscribe(door_client, endpoint)).status_code == 204
 

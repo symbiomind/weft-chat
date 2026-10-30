@@ -117,6 +117,7 @@ DEFAULTS: dict[str, Any] = {
         # at any host this server can reach. A host matches itself or any subdomain.
         "allowed_hosts": [
             "fcm.googleapis.com",                   # Chrome, Edge on Android, Brave
+            "jmt17.google.com",                     # Chromium builds (Linux distros)
             "updates.push.services.mozilla.com",    # Firefox
             "push.apple.com",                       # Safari, and iPhone home-screen apps
             "notify.windows.com",                   # Edge on Windows
