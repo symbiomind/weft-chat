@@ -205,6 +205,24 @@ export function dismissAllNotifications(weftId = null) {
   return apiFetch(`${NOTIFICATIONS}/dismiss`, jsonBody("POST", weftId ? { weft_id: weftId } : {}));
 }
 
+// ---- push: the device rung while Weft is closed ----
+
+const PUSH = "/api/push";
+
+/** Whether this server pushes: `{available, public_key}`. */
+export function pushInfo() {
+  return apiFetch(PUSH);
+}
+
+/** Keep this device's subscription, as `PushSubscription.toJSON()` gives it. */
+export function pushSubscribe(subscription) {
+  return apiFetch(`${PUSH}/subscription`, jsonBody("PUT", subscription));
+}
+
+export function pushUnsubscribe(endpoint) {
+  return apiFetch(`${PUSH}/subscription`, jsonBody("DELETE", { endpoint }));
+}
+
 /**
  * Give a weft a background picture. The body is the file itself; what
  * comes back as `background` is the hash of what the server STORED after re-encoding.
