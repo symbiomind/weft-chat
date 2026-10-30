@@ -7,10 +7,11 @@ still rings the device while a tab is open, and says that is all it can do.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import db, deps, push
+from app import db, deps, push, push_icons
 from app.models import User
 
 router = APIRouter(
@@ -18,6 +19,11 @@ router = APIRouter(
     tags=["push"],
     dependencies=[Depends(deps.require_db_healthy), Depends(deps.require_csrf)],
 )
+
+
+#: The icons, apart: the device fetches one with no login and no CSRF token to show.
+#: See app/push_icons.py for why that is acceptable.
+icon_router = APIRouter(prefix="/api/push/icons", tags=["push"])
 
 
 class PushOut(BaseModel):
@@ -81,3 +87,14 @@ async def unsubscribe(
     """Forget this device's subscription. Nothing to forget is not an error: the
     switch going off must always work."""
     await push.unsubscribe(session, user_id=user.id, endpoint=body.endpoint)
+
+
+@icon_router.get("/{name}.png", response_class=FileResponse)
+async def icon(name: str) -> FileResponse:
+    """A weft's notification icon. Public: its name is the only key to it."""
+    path = push_icons.path_for(name)
+    if path is None or not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such icon.")
+    # Immutable: a changed picture or pair is a new name, never new bytes under this one.
+    return FileResponse(path, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})

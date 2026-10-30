@@ -5,7 +5,8 @@
  * deployed but not running; a worker that cached the app would undo that.
  *
  * A push from the server (app/push.py) is drawn here, with Weft closed or open. Only
- * its fixed shape is drawn: a weft's name, capped, and a count. Nothing else in the
+ * its fixed shape is drawn: a weft's name, capped, a count, and the weft's icon, taken
+ * as a name and only ever looked for under /api/push/icons/. Nothing else in the
  * payload is read, and no link is taken from it, so even a server that was taken over
  * can only show a notification that looks like Weft's and opens Weft.
  *
@@ -24,6 +25,8 @@ self.addEventListener("push", (event) => {
     ? data.name.trim().slice(0, 60) : "Weft";
   const count = Number.isInteger(data.count) && data.count > 0 ? Math.min(data.count, 999) : 0;
   const weft = typeof data.weft === "string" ? data.weft.slice(0, 64) : "";
+  const icon = typeof data.icon === "string" && /^[0-9a-f]{64}$/.test(data.icon)
+    ? `/api/push/icons/${data.icon}.png` : "/icons/icon-192.png";
   event.waitUntil(self.registration.showNotification(name, {
     body: count
       ? `${count} notification${count === 1 ? "" : "s"} waiting`
@@ -31,7 +34,7 @@ self.addEventListener("push", (event) => {
     // The same tag the open window uses, so one weft is one notification either way.
     tag: weft ? `weft-${weft}` : "weft",
     renotify: true,
-    icon: "/icons/icon-192.png",
+    icon,
   }));
 });
 

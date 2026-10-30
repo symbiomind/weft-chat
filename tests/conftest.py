@@ -90,6 +90,7 @@ def private_data_dirs(tmp_path, monkeypatch):
     monkeypatch.setenv("WEFT_BACKGROUNDS_DIR", str(tmp_path / "data-backgrounds"))
     monkeypatch.setenv("WEFT_ATTACHMENTS_DIR", str(tmp_path / "data-attachments"))
     monkeypatch.setenv("WEFT_SPEECH_DIR", str(tmp_path / "data-speech"))
+    monkeypatch.setenv("WEFT_PUSH_ICONS_DIR", str(tmp_path / "data-push-icons"))
 
 
 @pytest_asyncio.fixture
@@ -166,6 +167,7 @@ async def client(app_config, session):
     app.include_router(tip_routes.router)
     app.include_router(notification_routes.router)
     app.include_router(push_routes.router)
+    app.include_router(push_routes.icon_router)
 
     async def _session_override():
         yield session

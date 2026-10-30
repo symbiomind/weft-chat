@@ -64,7 +64,7 @@ async def door_client(app_config, session, monkeypatch):
     app = FastAPI()
     for router in (attachment_routes.router, auth_routes.router, weft_routes.router,
                    door_routes.router, door_routes.upload_router,
-                   notification_routes.router, push_routes.router):
+                   notification_routes.router, push_routes.router, push_routes.icon_router):
         app.include_router(router)
     server = door.build_server()
     door.mount(app, server)

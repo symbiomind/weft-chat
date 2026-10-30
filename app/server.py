@@ -23,7 +23,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import (
-    backgrounds, bootstrap, config, db, door, housekeeping, security_headers, speech_cache,
+    backgrounds, bootstrap, config, db, door, housekeeping, push_icons, security_headers,
+    speech_cache,
 )
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI):
             # Pictures orphaned by a pick or provider deleted while nothing was looking
             # (the cascades are in the database; the files are not).
             await backgrounds.sweep(session)
+            await push_icons.sweep(session)
         # Dead refresh tokens and old login attempts: once now, then on an
         # interval for as long as the service runs.
         housekeeper = asyncio.create_task(housekeeping.run(), name="auth-housekeeping")
@@ -266,6 +268,7 @@ def create_app() -> FastAPI:
     app.include_router(tip_routes.router)
     app.include_router(notification_routes.router)
     app.include_router(push_routes.router)
+    app.include_router(push_routes.icon_router)
     app.include_router(door_routes.router)
     app.include_router(door_routes.upload_router)
 

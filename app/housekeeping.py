@@ -16,7 +16,7 @@ and the point to move this to a single scheduled job.
 import asyncio
 import logging
 
-from app import config, db, ratelimit, refresh
+from app import config, db, push_icons, ratelimit, refresh
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,9 @@ async def sweep() -> None:
             devices, tokens = await refresh.purge_expired(session, grace_days=grace)
             attempts = await ratelimit.prune(session)
             await session.commit()
+            # Icons for a picture or pair since changed. Here because nothing else
+            # notices: an icon is drawn by a push, never by the change itself.
+            await push_icons.sweep(session)
     except Exception:
         logger.exception("Auth housekeeping failed; it will try again next interval.")
         return

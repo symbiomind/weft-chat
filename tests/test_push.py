@@ -27,8 +27,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from sqlalchemy import func, select, update
 
-from app import config, notifications, push, webpush
-from app.models import AuthSession, PushSubscription
+from app import config, notifications, push, push_icons, webpush
+from app.models import AuthSession, PushSubscription, Weft
 from tests.test_door import call, door_client, weft_with_key  # noqa: F401
 
 FCM = "https://fcm.googleapis.com/fcm/send/"
@@ -209,7 +209,9 @@ async def test_an_agents_notification_rings_with_who_never_what(
 
     [(subscription, payload, kwargs)] = sent
     assert subscription.endpoint == FCM + "device-1"
-    assert payload == {"weft": weft["id"], "name": "Builder", "count": 1}
+    assert payload == {"weft": weft["id"], "name": "Builder", "count": 1,
+                       "icon": payload["icon"]}
+    assert push_icons.NAME.match(payload["icon"])
     assert kwargs["raw_private"] == push_on
     assert len(kwargs["topic"]) <= 32
     assert (await session.scalar(select(PushSubscription))).last_ok_at is not None
@@ -257,3 +259,64 @@ async def test_nothing_rings_with_push_off(door_client, session, sent):
     await call(door_client, key, "notify", title="hello")
     await settle()
     assert sent == []
+
+
+# ---- the icon ---------------------------------------------------------------
+
+async def icon_of(door_client, session, key, sent) -> str:
+    await call(door_client, key, "notify", title="hello")
+    await settle()
+    return sent[-1][1]["icon"]
+
+
+@pytest.mark.asyncio
+async def test_the_icon_is_served_without_a_login(door_client, session, push_on, sent):
+    from io import BytesIO
+
+    from PIL import Image
+
+    _, key = await weft_with_key(door_client, session)
+    await subscribe(door_client)
+    name = await icon_of(door_client, session, key, sent)
+
+    response = await door_client.get(f"/api/push/icons/{name}.png",
+                                     headers={"Authorization": "", "X-Weft-CSRF": ""})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert "immutable" in response.headers["cache-control"]
+    assert Image.open(BytesIO(response.content)).size == (push_icons.SIZE, push_icons.SIZE)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["0" * 64, "../../weft", "A" * 64])
+async def test_only_a_kept_icon_is_served(door_client, name):
+    assert (await door_client.get(f"/api/push/icons/{name}.png")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_new_pair_is_a_new_icon_and_the_old_one_is_swept(
+    door_client, session, push_on, sent, monkeypatch,
+):
+    _, key = await weft_with_key(door_client, session)
+    await subscribe(door_client)
+    before = await icon_of(door_client, session, key, sent)
+
+    weft = await session.scalar(select(Weft))
+    weft.colour_a, weft.colour_b = "#e09f3e", "#5d5d81"
+    await session.commit()
+    push._last.clear()
+    after = await icon_of(door_client, session, key, sent)
+    assert after != before
+
+    monkeypatch.setattr(push_icons, "SWEEP_GRACE_SECONDS", -1)
+    assert await push_icons.sweep(session) == 1
+    assert not push_icons.path_for(before).exists()
+    assert push_icons.path_for(after).exists()
+
+
+def test_the_name_needs_the_secret(monkeypatch):
+    weft = Weft(name="x", colour_a="#000000", colour_b="#ffffff", background=None)
+    monkeypatch.setattr(config, "jwt_secret", lambda: "one-secret")
+    first = push_icons.name_for(weft)
+    monkeypatch.setattr(config, "jwt_secret", lambda: "another-secret")
+    assert push_icons.name_for(weft) != first

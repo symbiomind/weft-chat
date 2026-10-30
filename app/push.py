@@ -7,8 +7,9 @@ a notification through the door, each of that user's subscribed devices is sent 
 push (app/webpush.py). Off unless the instance turns it on (``push.enabled``), because
 the push goes through the browser vendor's service.
 
-**Who, never what.** A push carries the weft's id and name and how many are waiting,
-nothing of the notification itself. The service worker draws only that.
+**Who, never what.** A push carries the weft's id and name, how many are waiting, and
+the name of its icon (app/push_icons.py), nothing of the notification itself. The
+service worker draws only that.
 
 **A device, not just a user.** A subscription is tied to the signed-in device that made
 it (``PushSubscription.session_id``), and a device signed out or run out is skipped, so a
@@ -35,7 +36,7 @@ import httpx
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import config, db, notifications, webpush
+from app import config, db, notifications, push_icons, webpush
 from app.models import AuthSession, PushSubscription, Weft, utcnow
 
 logger = logging.getLogger(__name__)
@@ -161,8 +162,14 @@ async def deliver(user_id: str, weft_id: str) -> None:
     if weft is None or count == 0 or not subscriptions:
         return
 
+    try:
+        icon = await asyncio.to_thread(push_icons.ensure, weft)
+    except Exception:
+        # The app's own icon stands in: a picture is not worth a missed ring.
+        logger.exception("Drawing the push icon for weft %s failed", weft_id)
+        icon = None
     payload = json.dumps({
-        "weft": weft_id, "name": weft.name[:MAX_NAME], "count": count,
+        "weft": weft_id, "name": weft.name[:MAX_NAME], "count": count, "icon": icon,
     }).encode()
     delivered, gone = [], []
     async with httpx.AsyncClient(timeout=10) as client:
