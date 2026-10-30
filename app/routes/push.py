@@ -6,6 +6,9 @@ The window asks first whether this server pushes at all; when it does not, the s
 still rings the device while a tab is open, and says that is all it can do.
 """
 
+import logging
+from urllib.parse import urlsplit
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -13,6 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import db, deps, push, push_icons
 from app.models import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/push",
@@ -74,6 +79,10 @@ async def subscribe(
             endpoint=body.endpoint, p256dh=body.keys.p256dh, auth=body.keys.auth,
         )
     except push.BadSubscription as exc:
+        # The host only: it says which browser's service, and the rest of the endpoint
+        # is the device's address.
+        logger.warning("Refused a push subscription from %s: %s",
+                       urlsplit(body.endpoint).hostname or "no host", exc)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                             detail=str(exc)) from exc
 

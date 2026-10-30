@@ -140,7 +140,10 @@ async def send(
         "Content-Encoding": "aes128gcm",
         "Content-Type": "application/octet-stream",
         "TTL": str(ttl),
-        "Urgency": "normal",
+        # High, or Android holds it in doze until the phone wakes: minutes late, which
+        # for a report someone is waiting on is the whole point lost. Sends are already
+        # held to one per weft per minute.
+        "Urgency": "high",
     }
     if topic:
         headers["Topic"] = topic
