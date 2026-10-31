@@ -1053,8 +1053,8 @@ export function renderWeft(panels, {
       el("p", {
         class: "hint",
         text: "Lets this weft's agent show you pictures in its replies and leave you " +
-          "notifications, through Weft's MCP server. An invite or a new key replaces " +
-          "the old key.",
+          "notifications, through Weft's MCP server. A new key replaces the old one at " +
+          "once; an invite does when your agent reads it.",
       }),
       now,
       el("div", { class: "row-confirm" }, [invite, close]),
