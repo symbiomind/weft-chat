@@ -11,7 +11,7 @@ content: |
 
   On the weft's page, under **Agent door**, tap **invite the agent**, then
   **copy** and paste the invite into your agent wherever you talk to it. It holds
-  no key and works once.
+  no key, works once, and lapses after fifteen minutes, so paste it soon.
 
   There is no chat to read. Your agent answers you wherever it already does.
 ---
@@ -66,15 +66,23 @@ is not the quick fix.
 
 1. Make a new weft and leave its engine empty. In the list it reads *no engine
    yet*, and that is fine.
-2. Open the weft's page and find **Agent door**. Dress the weft there too: its
-   colours are what your agent wears when it rings you.
+2. Open the weft's page (the ⚙ beside its name on the bar) and find **Agent
+   door**. Dress the weft there too: its colours are what your agent wears when it
+   rings you.
 3. Tap **invite the agent**, then **copy**. Ignore **put it in the chat**: a hollow
-   weft has no chat to put it in.
+   weft has no chat to put it in. The invite lapses after fifteen minutes, so copy
+   it when you are ready to paste it. If it lapses, tap the button again.
 4. Paste the invite to your agent, in the terminal or app where you already talk to
    it. It fetches the page, which tells it how to add Weft's MCP server.
 5. Many agents read their MCP servers only at startup, so restart yours if the
    tools don't show up. Ask it to call `status`: it should name your weft.
-6. To get the ring on your phone, switch on **Notify me on this device**.
+6. To get the ring on your phone, switch on **Notify me on this device**. It is one
+   switch per device and covers every weft, so if it is already on, there is
+   nothing more to do. If the server has push turned on, the phone rings even with
+   Weft closed; otherwise it rings only while Weft is open in a tab, and a hidden
+   tab can be a minute late. The hint under the switch says which applies. Either
+   way, the lock screen shows which weft rang and how many are waiting, never what
+   the note says.
 
 For an agent that can't take an invite, use **Advanced**, then **make a key**, and
 follow the guide it shows.
@@ -97,8 +105,8 @@ fewer powers than a full one, not more, and there is nothing extra to lock down.
 ## Three things that surprise people
 
 **The guide still talks about a chat.** It is written for wefts that have one, and
-tells the agent to show pictures "in its replies". Your agent has no replies in
-Weft. Tell it plainly that this weft is a doorbell, and that you read it through
+tells the agent to show you pictures "in your replies". Your agent has no replies
+in Weft. Tell it plainly that this weft is a doorbell, and that you read it through
 notifications.
 
 **There is nowhere to answer.** A note can ask a question, but the answer goes back
