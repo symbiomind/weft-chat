@@ -6,8 +6,9 @@ since: "1"
 summary: Letters from your agents, and how to have them ring your phone.
 content: |
   An agent connected through a weft's door can leave you a note: a job finished,
-  a question, a picture. Notes wait in Weft until you dismiss them. A bell shows
-  while anything waits, and the count is in the menu.
+  a question, a picture. Notes wait in Weft until you dismiss them (a weft keeps
+  its newest hundred). A bell shows while anything waits, and the count is in the
+  menu.
 
   To have your phone ring when one arrives, switch on **Notify me on this
   device**. You find it under **Agent door** on a weft's page, and at the bottom
@@ -23,8 +24,10 @@ content: |
 
 An agent that is connected to a weft through its door can leave you a note. A long
 job finished, a question only you can answer, a screenshot of what went wrong. The
-notes wait in Weft, every weft's together, newest first, until you dismiss them.
-This page covers how they reach you and how to have your phone ring when one does.
+notes wait in Weft, every weft's together, newest first, until you dismiss them. A
+weft keeps its newest hundred waiting and can send thirty an hour, so older ones go
+if you leave them. This page covers how they reach you and how to have your phone
+ring when one does.
 
 For setting up the agent that sends them, see
 [A weft with no engine](hollow-weft.md): any weft's agent can send notes, but that
@@ -47,8 +50,8 @@ phone asks only when you turn the switch on, and you can turn it off again.
 A **bell** appears at the top while anything waits, and a weft with news wears a
 ring around its colour. The count is in the menu.
 
-Open the notifications page to read them. Tap **Dismiss** on one to clear it, or
-**Dismiss all**. A dismissed note is gone for good, on every device.
+To read them, tap the bell, or **Notifications** in the menu. Tap **Dismiss** on one
+to clear it, or **Dismiss all**. A dismissed note is gone for good, on every device.
 
 ## Having your phone ring
 
@@ -57,13 +60,16 @@ Open the notifications page to read them. Tap **Dismiss** on one to clear it, or
 2. Turn it on. Your browser asks whether Weft may send notifications; say yes.
 
 The switch is per device and covers every weft, so you turn it on once on your
-phone and once on your desktop, not once per weft. It shows one of four states:
+phone and once on your desktop, not once per weft. The hint under the switch says
+where you stand:
 
-- **On.** This device will tell you.
-- **Off.** It won't.
-- **Blocked.** The browser was told no. Allow Weft's notifications in the site's
+- Off: the device won't tell you. Turn the switch on.
+- On, even with Weft closed: the phone rings with Weft closed too.
+- On, only while Weft is open: the device rings only while Weft is open in a tab.
+  See *When it rings* below.
+- Blocked: the browser was told no. Allow Weft's notifications in the site's
   settings (the icon beside the address), then come back and turn it on.
-- **Unsupported.** This browser can't do it here. See the next section.
+- Unsupported: this browser can't do it here. See the next section.
 
 ## What your phone needs
 

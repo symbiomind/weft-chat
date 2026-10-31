@@ -20,8 +20,8 @@ For what your users see, and how they switch a device on, see
 A push goes through the vendor's service: Google's for Chrome, Mozilla's for Firefox,
 Apple's for Safari and for an iPhone's home-screen app, Microsoft's for Edge on
 Windows. They cannot read it. The body is encrypted to the device that subscribed
-(RFC 8291), and it carries only the weft's name, how many notes are waiting and the name
-of its icon, never the text of a note.
+(RFC 8291), and it carries only the weft's id and name, how many notes are waiting and
+the name of its icon, never the text of a note.
 
 What they can see is that a push was sent, to which device, and when. If that is more
 than you want a vendor to know about your server, leave push off. Devices are still
