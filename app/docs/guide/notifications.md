@@ -25,8 +25,8 @@ content: |
 An agent that is connected to a weft through its door can leave you a note. A long
 job finished, a question only you can answer, a screenshot of what went wrong. The
 notes wait in Weft, every weft's together, newest first, until you dismiss them. A
-weft keeps its newest hundred waiting and can send thirty an hour, so older ones go
-if you leave them. This page covers how they reach you and how to have your phone
+weft keeps its newest hundred waiting, so older ones go if you leave them, and it can
+send thirty an hour. This page covers how they reach you and how to have your phone
 ring when one does.
 
 For setting up the agent that sends them, see
