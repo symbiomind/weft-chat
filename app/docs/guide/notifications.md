@@ -92,8 +92,8 @@ phone up.
 
 The icon is the weft's own: a square from the middle of its background picture, with
 its ring in its two colours. A weft with no picture wears the ring over the
-theme's plain background, and one with no colours wears the theme's pair. On an iPhone, Apple
-decides the icon and may show Weft's own instead.
+theme's plain background, and one with no colours wears the theme's pair. On an iPhone you may see
+Weft's own icon instead of the weft's. That is the phone's choice, not a fault.
 
 Tap a ring to open Weft. If Weft is already open, it comes to the front and opens
 the notifications page.
@@ -104,8 +104,8 @@ Push is **off by default**, because it goes through your browser vendor's push
 service: Google's for Chrome, Mozilla's for Firefox, Apple's for Safari. They can't
 read the note, which is encrypted to the device, but they do see that one was sent,
 to which device, and when. Turning it on is a knowing choice for the person who runs
-the server. The settings are under `push` in `config.example.yml`, which says how to
-make the key.
+the server. [Turning on push](../service/push.md) covers what it costs in privacy and
+how to switch it on.
 
 ## Three things that surprise people
 
