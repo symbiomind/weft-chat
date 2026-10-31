@@ -146,6 +146,7 @@ async def client(app_config, session):
     from app.routes import attachments as attachment_routes
     from app.routes import auth as auth_routes
     from app.routes import chat as chat_routes
+    from app.routes import guide as guide_routes
     from app.routes import providers as provider_routes
     from app.routes import sessions as session_routes
     from app.routes import speech as speech_routes
@@ -165,6 +166,7 @@ async def client(app_config, session):
     app.include_router(speech_routes.router)
     app.include_router(stt_routes.router)
     app.include_router(tip_routes.router)
+    app.include_router(guide_routes.router)
     app.include_router(notification_routes.router)
     app.include_router(push_routes.router)
     app.include_router(push_routes.icon_router)

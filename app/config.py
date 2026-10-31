@@ -108,6 +108,9 @@ DEFAULTS: dict[str, Any] = {
         "max_connections_per_user": 8,
         "sweep_interval_seconds": 60,
     },
+    "docs": {
+        "url": "https://github.com/symbiomind/weft-chat/blob/main/app/docs",
+    },
     "push": {
         "enabled": False,
         "key": "",
@@ -376,6 +379,12 @@ def push_key() -> bytes | None:
 def push_subject() -> str:
     """Who the push services may contact: push.subject, or else public_origin."""
     return str(get("push.subject") or "").strip() or public_origin()
+
+
+def docs_url() -> str:
+    """Where the guide's full pages are read: a page's "whole page" link is this plus its
+    path under app/docs/. Empty means no link."""
+    return str(get("docs.url") or "").strip().rstrip("/")
 
 
 def push_allowed_hosts() -> list[str]:

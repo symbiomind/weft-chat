@@ -183,6 +183,7 @@ export const PURPOSE = {
   account: "password · devices · sign out",
   wefts: "thread a new one, dress the ones you have",
   providers: "engines · speech · sessions · talk",
+  guide: "how weft works, a page at a time",
   comfort: "motion · transparency · send button",
   about: "the loom · what you've found",
 };

@@ -340,6 +340,34 @@
         "title": "FinishIn",
         "type": "object"
       },
+      "GuideOut": {
+        "properties": {
+          "intro": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intro"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageOut"
+            },
+            "title": "Pages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "intro",
+          "pages"
+        ],
+        "title": "GuideOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -682,6 +710,58 @@
           "created_at"
         ],
         "title": "NotificationOut",
+        "type": "object"
+      },
+      "PageOut": {
+        "properties": {
+          "html": {
+            "title": "Html",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "since": {
+            "title": "Since",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "since",
+          "html",
+          "url"
+        ],
+        "title": "PageOut",
         "type": "object"
       },
       "PasswordChangeRequest": {
@@ -2378,6 +2458,28 @@
         "summary": "Upload",
         "tags": [
           "door"
+        ]
+      }
+    },
+    "/api/guide": {
+      "get": {
+        "description": "Every guide page, in order, ready to show.",
+        "operationId": "guide_api_guide_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Guide",
+        "tags": [
+          "guide"
         ]
       }
     },

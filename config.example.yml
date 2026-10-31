@@ -84,6 +84,12 @@ server:
     # what was kept.
     cache_ttl_hours: 168                 # 7 days
 
+  docs:
+    # Where the guide's full pages are read. Each page in the app's Guide ends with a
+    # link to the whole page: this, then its path under app/docs/. Point it at your own
+    # copy of the docs, or set it to "" for no link.
+    url: "https://github.com/symbiomind/weft-chat/blob/main/app/docs"
+
   push:
     # Web Push: a phone is told about a notification while Weft is closed. Off by
     # default, because it goes through the browser vendor's push service (Google for

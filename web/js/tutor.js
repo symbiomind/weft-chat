@@ -65,7 +65,7 @@ const SETTLE_MS = 380;
 
 const INERT = {
   visit() {}, emit() {}, setReady() {}, drawerControls: () => [], teardown() {},
-  progress: () => Promise.resolve(null), read() {}, forgetFinds: () => Promise.resolve(null),
+  progress: () => Promise.resolve(null), read() {}, readId() {}, forgetFinds: () => Promise.resolve(null),
   whenLoaded: Promise.resolve(false), has: () => false, find: () => false,
 };
 
@@ -76,9 +76,10 @@ const INERT = {
  *
  * @param {{user: ?{id:string}, where: () => string,
  *   context: () => {wefts:number}, canShow: () => boolean,
- *   extras?: (tip: object) => Node[]}} options
+ *   extras?: (tip: object) => Node[], openDoc?: (id: string) => void}} options
+ *   `openDoc` follows a tip's `doc:` link to a guide page (views/guide.js).
  */
-export function createTutor({ user, where, context, canShow, extras = () => [] }) {
+export function createTutor({ user, where, context, canShow, extras = () => [], openDoc = () => {} }) {
   if (!user) return INERT;
   forgetLocalProgress();
 
@@ -102,6 +103,14 @@ export function createTutor({ user, where, context, canShow, extras = () => [] }
   document.body.append(ring, card);
 
   card.addEventListener("click", (event) => {
+    const doc = event.target.closest("a[data-doc]");
+    if (doc) {
+      // The next step deeper: the tip makes way for its page.
+      event.preventDefault();
+      hide();
+      openDoc(doc.dataset.doc);
+      return;
+    }
     const link = event.target.closest("a[data-tip]");
     if (link) {
       event.preventDefault();
@@ -371,6 +380,15 @@ export function createTutor({ user, where, context, canShow, extras = () => [] }
 
     /** Open a tip to read, as a (?) does. */
     read(tip) {
+      show(tip, true);
+    },
+
+    /** Open a tip to read by its id, as a `tip:` link in a guide page does. A hidden tip
+     *  at the end of a link is found by following it, as from another tip. */
+    readId(id) {
+      const tip = loaded ? tips.get(id) : null;
+      if (!tip) return;
+      if (tip.group === "secret") tips.finish(tip.id);
       show(tip, true);
     },
 

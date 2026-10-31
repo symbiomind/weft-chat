@@ -747,6 +747,18 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 .panel .row.find.locked .row-name{color:var(--dim); letter-spacing:.2em}
 .about-forget{display:flex; justify-content:flex-start}
 
+/* the guide: a list of pages, and a page's short version with the way to the whole one */
+.panel button.row.guide-row{width:100%; text-align:left; font:inherit; color:var(--text); cursor:pointer}
+.panel button.row.guide-row:hover{border-color:var(--fern)}
+.panel button.row.guide-row:focus-visible{outline:2px solid var(--fern); outline-offset:1px}
+.guide-chev{color:var(--dim); font-size:1.3rem; line-height:1}
+.panel-body.guide{display:flex; flex-direction:column; gap:14px}
+/* the tip card's text (.tip-body, below), at reading size: a page is read, not glanced at */
+.tip-body.guide-text{font-size:1rem; line-height:1.6; gap:12px}
+.panel-body.guide-page{display:flex; flex-direction:column; gap:18px}
+.guide-whole{align-self:flex-start; color:var(--fern); font-weight:600; text-decoration:none}
+.guide-whole:hover, .guide-whole:focus-visible{text-decoration:underline}
+
 /* notifications: letters, each in its own weft's colour, on a neutral page */
 .notes-head{display:flex; justify-content:flex-end}
 .notes-head:has(> [hidden]:only-child){display:none}

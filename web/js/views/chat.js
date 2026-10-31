@@ -77,6 +77,7 @@ import * as audiodebug from "../audiodebug.js";
 import * as speech from "../speech.js";
 import { createThreads, mergeStoreRead, threadKey } from "../threads.js";
 import { createTutor } from "../tutor.js";
+import { loadGuide, renderGuide, renderGuidePage } from "./guide.js";
 import { getState, logout, subscribe } from "../session.js";
 import * as theme from "../theme.js";
 import * as notify from "../notify.js";
@@ -638,6 +639,7 @@ export function renderChat(root) {
     canShow: () => !inFlight && pickList.hidden,
     extras: (tip) => (tip.id === ELIZA_TIP ? elizaControls()
       : tip.id === THINGS_TIP ? askEliza() : []),
+    openDoc: (id) => openDoc(id),
   });
   const unwatchPanels = panels.watch(() => tutor.visit());
 
@@ -893,6 +895,7 @@ export function renderChat(root) {
       screen("Wefts", panels.PURPOSE.wefts, openWefts),
       screen("Providers", panels.PURPOSE.providers, openProviders),
       el("div", { class: "drawer-rule" }),
+      screen("Guide", panels.PURPOSE.guide, openGuide),
       screen("Comfort", panels.PURPOSE.comfort, openComfort),
       screen("About", panels.PURPOSE.about, openAbout),
       el("div", { class: "drawer-rule" }),
@@ -926,6 +929,23 @@ export function renderChat(root) {
   function openComfort() {
     closeDrawer();
     panels.push((p) => renderComfort(p), { page: "comfort" });
+  }
+
+  /** How a guide page's links are followed: another page on top, or a tip to read. */
+  const guideLinks = { openDoc: (id) => openDoc(id), openTip: (id) => tutor.readId(id) };
+
+  function openGuide() {
+    closeDrawer();
+    panels.push((p) => renderGuide(p, guideLinks), { page: "guide" });
+  }
+
+  /** One guide page, by id: from the Guide's list, a page's link, or a tip's. */
+  function openDoc(id) {
+    closeDrawer();
+    loadGuide().then((guide) => {
+      const page = guide.pages.find((g) => g.id === id);
+      if (page) panels.push((p) => renderGuidePage(p, page, guideLinks), { page: "guide" });
+    }).catch(() => {});
   }
 
   function openAbout() {

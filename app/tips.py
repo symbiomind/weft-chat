@@ -33,13 +33,11 @@ tip must never be what stops the service coming up. So ``load`` logs and leaves 
 and ``tests/test_tips.py`` runs the strict check over every shipped file, which is where a
 mistake should be caught.
 
-**The markdown is rendered here, once, and deliberately small.** The client has no
-markdown renderer (a reply stays plain text, ``web/js/references.js``) and loads no third-
-party script, so the HTML arrives ready. Anything the renderer does not know stays as the
-characters it is; a site generator reading the same files later can do the full syntax.
+**The markdown is rendered here, once, and deliberately small** (``app/markdown.py``,
+shared with the guide pages in ``app/docs.py``). The HTML arrives ready, and a tip can
+link to a guide page as well as to another tip.
 """
 
-import html
 import logging
 import re
 from pathlib import Path
@@ -48,6 +46,7 @@ import yaml
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.markdown import render_markdown
 from app.models import TipMark
 
 logger = logging.getLogger(__name__)
@@ -85,63 +84,6 @@ _FRONT = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 
 class TipError(ValueError):
     """A tip file that cannot be used, with the reason."""
-
-
-# ---------------------------------------------------------------------------
-# Markdown
-# ---------------------------------------------------------------------------
-
-_LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
-_BOLD = re.compile(r"\*\*(.+?)\*\*")
-_ITALIC = re.compile(r"\*(.+?)\*")
-_ORDERED = re.compile(r"^\d+\.\s+")
-_BULLET = re.compile(r"^[-*]\s+")
-
-
-def _link(match: re.Match) -> str:
-    text, target = match.group(1), match.group(2)
-    if target.startswith("tip:"):
-        return f'<a href="#" data-tip="{target[4:]}">{text}</a>'
-    if target.startswith(("https://", "http://")):
-        return f'<a href="{target}" target="_blank" rel="noopener noreferrer">{text}</a>'
-    # Any other scheme stays as the words it is.
-    return match.group(0)
-
-
-def _inline(text: str) -> str:
-    """Escape, then mark up. Code spans first, and nothing inside them is touched."""
-    parts = text.split("`")
-    # An unpaired backtick is a backtick, not the start of code running to the end.
-    if len(parts) % 2 == 0:
-        parts[-2] += "`" + parts.pop()
-    out = []
-    for index, part in enumerate(parts):
-        safe = html.escape(part, quote=True)
-        if index % 2:
-            out.append(f"<code>{safe}</code>")
-        else:
-            safe = _LINK.sub(_link, safe)
-            safe = _BOLD.sub(r"<strong>\1</strong>", safe)
-            safe = _ITALIC.sub(r"<em>\1</em>", safe)
-            out.append(safe)
-    return "".join(out)
-
-
-def render_markdown(source: str) -> str:
-    """Paragraphs and lists, with inline marks. Blank lines separate blocks."""
-    blocks = [b for b in re.split(r"\n\s*\n", source.strip()) if b.strip()]
-    out = []
-    for block in blocks:
-        lines = [line.strip() for line in block.splitlines()]
-        if all(_ORDERED.match(line) for line in lines):
-            items = "".join(f"<li>{_inline(_ORDERED.sub('', line))}</li>" for line in lines)
-            out.append(f"<ol>{items}</ol>")
-        elif all(_BULLET.match(line) for line in lines):
-            items = "".join(f"<li>{_inline(_BULLET.sub('', line))}</li>" for line in lines)
-            out.append(f"<ul>{items}</ul>")
-        else:
-            out.append(f"<p>{_inline(' '.join(lines))}</p>")
-    return "".join(out)
 
 
 # ---------------------------------------------------------------------------
