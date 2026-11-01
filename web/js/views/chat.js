@@ -1383,6 +1383,11 @@ export function renderChat(root) {
       addBubble("ai", ELIZA_GREETING);
       return;
     }
+    // Not "this window is now pointed at": with no engine, nothing is on the other end.
+    if (!answers(current)) {
+      addBubble("ai", noEngineWords(current));
+      return;
+    }
     // The last clause has to match what this pick is actually set to. It used to say
     // "nothing is kept once you reload" to everybody, which stopped being true the day
     // a pick could ask for a scrollback — a greeting is a small place to be wrong, but
@@ -1581,16 +1586,12 @@ export function renderChat(root) {
 
   /**
    * What a weft can do, as the quiet row of icons the bar and the menu both show. A weft
-   * with no engine can do none of it, so it shows one ⊘ instead: narrower than the words
-   * "no engine", which were what pushed the ⚙ off a phone's bar.
+   * with no engine shows ⊘ (icons.js): narrower than the words "no engine", which were
+   * what pushed the ⚙ off a phone's bar.
    */
   function capsOf(entry) {
-    const bound = answers(entry);
-    const marks = entry && !bound
-      ? [icon("no-entry", { label: "no engine yet" })]
-      : capabilitiesOf(entry, { hears: hears(entry) })
-        .map((cap) => icon(cap.icon, { label: cap.label }));
-    return el("span", { class: "pick-caps" }, marks);
+    return el("span", { class: "pick-caps" }, capabilitiesOf(entry, { hears: hears(entry) })
+      .map((cap) => icon(cap.icon, { label: cap.label })));
   }
 
   /** Paint the whole Pick bar from `current`: name, title, capabilities and ⚙. */
@@ -1606,6 +1607,7 @@ export function renderChat(root) {
         ? `${current.name}: ${current.model_id} on ${current.provider_name}`
         : `${current.name}: no engine yet`;
     pickCaps.replaceChildren(...capsOf(current).childNodes);
+    paintSendable();
     shelf.show("ptt", hears(current));
     // The bar's pea wears the ring too, only to be seen: the bell to press is the LED.
     pickLed.classList.toggle("waiting", Boolean(current && waiting[current.id] > 0));
@@ -1756,7 +1758,29 @@ export function renderChat(root) {
    */
   function setBusy(busy) {
     inFlight = busy;
-    sendButton.setAttribute("aria-disabled", String(busy));
+    paintSendable();
+  }
+
+  /**
+   * A weft with no engine has nobody to answer, so the bar says so before anything is
+   * typed: its placeholder carries the reason and send greys out. The box itself stays,
+   * as it does while a reply streams; a send anyway gets the same words as a reply.
+   */
+  function paintSendable() {
+    const hollow = Boolean(current) && !answers(current);
+    sendButton.setAttribute("aria-disabled", String(inFlight || hollow));
+    input.placeholder = !hollow ? "say something…"
+      : current.has_door ? "nothing answers here: its notes come by the bell"
+      : "no engine yet: give it one with ⚙";
+  }
+
+  /** Why a weft with no engine does not answer, and what it is for if not that. */
+  function noEngineWords(weft) {
+    return weft.has_door
+      ? `${weft.name} has no engine, so nothing answers here. Its agent reaches you ` +
+        "through its door: its notes arrive under the bell."
+      : `${weft.name} has no engine yet, so there is nobody to answer. Give it one on ` +
+        "its page: the ⚙ beside it on the Pick menu.";
   }
 
   function streamError(bubble, message) {
@@ -2013,11 +2037,7 @@ export function renderChat(root) {
     }
 
     if (!answers(current)) {
-      addBubble(
-        "ai",
-        `${current.name} has no engine yet, so there is nobody to answer. Give it one on ` +
-          "its page — the ⚙ beside it on the Pick menu.",
-      );
+      addBubble("ai", noEngineWords(current));
       return;
     }
 

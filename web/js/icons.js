@@ -98,18 +98,29 @@ export function icon(name, { label } = {}) {
 }
 
 /**
- * What a weft can do, in the order the Pick shows it: `[{icon, label}]`.
+ * What a weft can do, in the order the Pick shows it: `[{icon, label}]`. The Pick menu,
+ * the Pick bar and the Wefts screen all show this, so they always agree.
  *
  * A voice belongs to the weft — it is set on the weft's page, and so does its MCP
  * door: the plug says a key has been minted for its agent. Push to talk belongs to
  * the user, so it shows on every weft or on none; it is here because hearing you is
  * still something the window you are about to talk into can do.
  *
+ * A weft with no engine shows ⊘ first, and nothing that needs an engine: a voice or
+ * ears with nothing to answer are not things it can do. Its door can still be open
+ * (a weft that only takes notes from an agent elsewhere), so the plug stays.
+ *
  * @param weft  a weft as the Pick menu lists it, or null
  * @param hears whether the user has push to talk set up
  */
 export function capabilitiesOf(weft, { hears = false } = {}) {
   if (!weft) return [];
+  if (!(weft.builtin || (weft.provider_id && weft.model_id))) {
+    return [
+      { icon: "no-entry", label: "no engine: nothing answers here" },
+      ...(weft.has_door ? [{ icon: "plug", label: "has a door: its agent can reach Weft" }] : []),
+    ];
+  }
   const caps = [];
   if (weft.has_voice) caps.push({ icon: "voice", label: "speaks its replies" });
   if (weft.has_door) caps.push({ icon: "plug", label: "has a door: its agent can reach Weft" });
