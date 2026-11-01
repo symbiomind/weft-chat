@@ -78,15 +78,23 @@ export function createSendShelf(sendButton, { onPetal, onToggle } = {}) {
   let open = false;
   let toggledAt = 0;
 
+  /** Open, as the user left it, and with a petal in it: a pick that can neither take a
+   *  picture nor hear (ELIZA, a weft with no engine) shows no empty shelf, and the
+   *  shelf comes back by itself on the next pick that can. */
+  function paint() {
+    const shown = open && petals.some((petal) => !petal.hidden);
+    element.classList.toggle("open", shown);
+    // Invisible petals must not be reachable by Tab either.
+    shelf.inert = !shown;
+    sendButton.setAttribute("aria-expanded", String(shown));
+    // On the root so the log can make room for the shelf above the bar.
+    document.documentElement.toggleAttribute("data-shelf-open", shown);
+  }
+
   function setOpen(next, { quiet = false } = {}) {
     open = next;
     toggledAt = performance.now();
-    element.classList.toggle("open", open);
-    // Invisible petals must not be reachable by Tab either.
-    shelf.inert = !open;
-    sendButton.setAttribute("aria-expanded", String(open));
-    // On the root so the log can make room for the shelf above the bar.
-    document.documentElement.toggleAttribute("data-shelf-open", open);
+    paint();
     try {
       if (open) localStorage.setItem(OPEN_KEY, "1");
       else localStorage.removeItem(OPEN_KEY);
@@ -201,6 +209,7 @@ export function createSendShelf(sendButton, { onPetal, onToggle } = {}) {
   function show(act, visible) {
     const petal = petalFor(act);
     if (petal) petal.hidden = !visible;
+    paint();
   }
 
   /**

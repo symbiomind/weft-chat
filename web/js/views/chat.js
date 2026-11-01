@@ -335,8 +335,13 @@ export function renderChat(root) {
   }
   window.addEventListener("weft:stt-changed", loadStt);
 
-  /** Whether this pick hears you, by its own ears or the account's. */
-  const hears = (entry) => Boolean(earsOf(entry, stt));
+  /** Whether this pick hears you, by its own ears or the account's. Not with no engine:
+   *  there would be nobody to hear the words for. */
+  const hears = (entry) => answers(entry) && Boolean(earsOf(entry, stt));
+
+  /** Whether this pick takes pictures. Not ELIZA, who cannot see, and not a weft with
+   *  no engine. */
+  const takesPictures = (entry) => answers(entry) && !entry.builtin;
 
   /** Labels that last for a whole state rather than a moment. */
   const LASTING = ["listening", "transcribing"];
@@ -1609,6 +1614,7 @@ export function renderChat(root) {
     pickCaps.replaceChildren(...capsOf(current).childNodes);
     paintSendable();
     shelf.show("ptt", hears(current));
+    shelf.show("attach", takesPictures(current));
     // The bar's pea wears the ring too, only to be seen: the bell to press is the LED.
     pickLed.classList.toggle("waiting", Boolean(current && waiting[current.id] > 0));
     pickGear.hidden = !current;
@@ -2194,7 +2200,10 @@ export function renderChat(root) {
     // wait the moment it takes than to explain afterwards where it went.
     if (tray.uploading) return;
     if (!value && !tray.ready) return;
-    const attached = tray.take();
+    // Pictures chosen for another weft wait in the tray rather than go to one that
+    // cannot see them.
+    const attached = takesPictures(current) ? tray.take() : [];
+    if (!value && !attached.length) return;
     input.value = "";
     input.style.height = "auto";
     spokenDraft = false;
