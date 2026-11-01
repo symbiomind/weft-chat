@@ -337,11 +337,11 @@ def build_server():
     server = FastMCP(
         "weft",
         instructions=(
-            "Weft is the chat window your user reads you in. Use upload to show them "
-            "a picture: it gives you an address to send the file to with curl, and the "
-            "line to write in your reply. Use view to look at a picture you showed. "
-            "Use notify to leave your user a report to read when they are away, such as "
-            "when a long job you were left to do finishes."
+            "Weft is the window your user reads you in. Use upload to show them a "
+            "picture: it gives you an address to send the file to with curl, and the "
+            "line to write in your reply or in a notify body. Use view to look at a "
+            "picture you showed. Use notify to leave your user a report to read when "
+            "they are away, such as when a long job you were left to do finishes."
         ),
         streamable_http_path=PATH,
         # No sessions to keep: every call stands alone, and a restart loses nothing.
@@ -356,13 +356,15 @@ def build_server():
 
     @server.tool(structured_output=False)
     def upload(ctx: Context, name: str = "picture") -> str:
-        """Get a one-time address to upload a picture to, so it shows in your reply.
+        """Get a one-time address to upload a picture to, so your user can see it.
 
         Send the file's bytes to the address with an HTTP PUT within ten minutes, for
         example: curl -sS -T screenshot.png '<address>'. The answer is JSON whose
         "reference" is a line like ![name](https://.../api/attachments/<hash>). Write
-        that line in your reply, exactly, and the user sees the picture there. JPEG,
-        PNG, WebP and GIF are accepted, up to 20 MB.
+        that line, exactly and on a line of its own, in your reply or in the body of a
+        notify, and the user sees the picture there. The line keeps working after the
+        address is used, so it can go in both. JPEG, PNG, WebP and GIF are accepted,
+        up to 20 MB.
 
         name: what the picture is called, shown as its caption.
         """
@@ -374,7 +376,8 @@ def build_server():
         return (
             f"Upload address (one use, ten minutes): {address}\n"
             f"Send the file: curl -sS -T <file> '{address}'\n"
-            'The answer\'s "reference" is the line to write in your reply.'
+            'The answer\'s "reference" is the line to write, on a line of its own, in '
+            "your reply or in a notify body."
         )
 
     @server.tool(structured_output=False)
