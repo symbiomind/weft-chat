@@ -76,10 +76,15 @@ const INERT = {
  *
  * @param {{user: ?{id:string}, where: () => string,
  *   context: () => {wefts:number}, canShow: () => boolean,
- *   extras?: (tip: object) => Node[], openDoc?: (id: string) => void}} options
- *   `openDoc` follows a tip's `doc:` link to a guide page (views/guide.js).
+ *   extras?: (tip: object) => Node[], openDoc?: (id: string) => void,
+ *   loadGuide?: () => Promise<{pages: {id: string, sections?: string[]}[]}>}} options
+ *   `openDoc` follows a tip's `doc:` link to a guide page (views/guide.js), and
+ *   `loadGuide` says which sections the guide pages claim, for their (?) marks.
  */
-export function createTutor({ user, where, context, canShow, extras = () => [], openDoc = () => {} }) {
+export function createTutor({
+  user, where, context, canShow, extras = () => [], openDoc = () => {},
+  loadGuide = () => Promise.resolve({ pages: [] }),
+}) {
   if (!user) return INERT;
   forgetLocalProgress();
 
@@ -93,6 +98,8 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
   let timer = 0;
   /** @type {{tip: object, byHand: boolean} | null} */
   let showing = null;
+  /** Section -> the guide page that claims it, once the guide has loaded. */
+  let pages = new Map();
 
   // ---- the card ----
   // Polite and live, so a screen reader hears a tip arrive, as an eye sees it slide in.
@@ -105,9 +112,12 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
   card.addEventListener("click", (event) => {
     const doc = event.target.closest("a[data-doc]");
     if (doc) {
-      // The next step deeper: the tip makes way for its page.
+      // The next step deeper: the tip makes way for its page. Leaving for the page is
+      // reading it, as Got it is.
       event.preventDefault();
+      if (showing) tips.finish(showing.tip.id);
       hide();
+      paintMarks();
       openDoc(doc.dataset.doc);
       return;
     }
@@ -132,6 +142,7 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
     } else if (act === "off") {
       tips.setOn(false);
       hide();
+      paintMarks();
     }
   });
 
@@ -175,6 +186,9 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
       eyebrow,
       el("h3", { id: "tip-title", text: tip.title }),
       body,
+      ...(tip.guide ? [el("p", { class: "tip-more" }, [
+        el("a", { href: "#", "data-doc": tip.guide, text: "More in the guide →" }),
+      ])] : []),
       ...extras(tip),
       ...(!byHand && DOING[tip.done_on] ? [el("p", { class: "tip-or", text: DOING[tip.done_on] })] : []),
       actions,
@@ -263,29 +277,44 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
   }
 
   // ---- (?) marks ----
-  // On any [data-section] whose name a tip claims, whatever screen built it and however
-  // late: the Providers list is drawn after its read comes back.
+  // On any [data-section] that a tip or a guide page claims, whatever screen built it
+  // and however late: the Providers list is drawn after its read comes back. The rule
+  // for what a mark is and opens is tips.js's `mark()`.
   function paintMarks() {
     if (!loaded) return;
-    const ctx = context();
     for (const head of document.querySelectorAll("[data-section]")) {
-      const tip = tips.forSection(head.dataset.section);
-      let mark = head.querySelector(".qmark");
-      if (!tip) {
-        mark?.remove();
+      const mark = tips.mark(head.dataset.section, pages);
+      let button = head.querySelector(".qmark");
+      if (!mark) {
+        button?.remove();
         continue;
       }
-      if (!mark) {
-        mark = el("button", { type: "button", class: "qmark", text: "?" });
-        mark.addEventListener("click", () => show(tips.get(mark.dataset.tip), true));
+      if (!button) {
+        button = el("button", { type: "button", class: "qmark", text: "?" });
+        button.addEventListener("click", () => openMark(button));
         // Inside the heading, so it sits beside the words in a row or a column alike.
-        (head.querySelector("h2") ?? head).append(mark);
+        (head.querySelector("h2") ?? head).append(button);
       }
-      mark.dataset.tip = tip.id;
-      mark.setAttribute("aria-label", `help: ${tip.title}`);
-      mark.title = tip.title;
-      // Lit when it is the next thing to learn here.
-      mark.classList.toggle("fresh", tip.group === "core" && tips.ready(tip.id, ctx));
+      button.dataset.tip = mark.tip?.id ?? "";
+      button.dataset.doc = mark.doc ?? "";
+      const label = mark.tip ? `tip: ${mark.tip.title}` : "guide page";
+      button.setAttribute("aria-label", label);
+      button.title = mark.tip?.title ?? "In the guide";
+      button.classList.toggle("unread", mark.look === "unread");
+      button.classList.toggle("read", mark.look === "read");
+    }
+  }
+
+  /** A (?) opens its tip, which counts as read once opened, or else its guide page. */
+  function openMark(button) {
+    const tip = button.dataset.tip ? tips.get(button.dataset.tip) : null;
+    if (tip) {
+      tips.finish(tip.id);
+      show(tip, true);
+      paintMarks();
+    } else if (button.dataset.doc) {
+      hide();
+      openDoc(button.dataset.doc);
     }
   }
 
@@ -310,6 +339,14 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
       loaded = true;
       markLoaded(true);
       paintMarks();
+      loadGuide()
+        .then((guide) => {
+          pages = new Map(guide.pages.flatMap((page) => (page.sections ?? []).map((section) => [section, page.id])));
+          paintMarks();
+        })
+        .catch(() => {
+          // No guide: the tips' own marks still work.
+        });
       if (page && ready) settle(tips.event(`open:${page}`, context()));
       offer();
     })
@@ -338,6 +375,7 @@ export function createTutor({ user, where, context, canShow, extras = () => [], 
       box.addEventListener("change", () => {
         tips.setOn(box.checked);
         if (!box.checked) hide();
+        paintMarks();
       });
       const restart = el("button", {
         type: "button", class: "small", text: "Restart tips",

@@ -1,11 +1,11 @@
 ---
 id: providers/engine
 page: providers
-section: engines
+section: providers/engines
 group: core
 order: 1
 after: [drawer/start]
-point_at: "[data-section=engines] > button"
+point_at: "[data-section='providers/engines'] > button"
 done_on: providers-changed
 since: "1"
 ---

@@ -640,6 +640,7 @@ export function renderChat(root) {
     extras: (tip) => (tip.id === ELIZA_TIP ? elizaControls()
       : tip.id === THINGS_TIP ? askEliza() : []),
     openDoc: (id) => openDoc(id),
+    loadGuide,
   });
   const unwatchPanels = panels.watch(() => tutor.visit());
 

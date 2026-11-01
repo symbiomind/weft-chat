@@ -1,7 +1,7 @@
 ---
 id: providers/sessions
 page: providers
-section: sessions
+section: providers/sessions
 group: advanced
 since: "1"
 ---

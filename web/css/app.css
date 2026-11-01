@@ -1243,7 +1243,12 @@ button.row.pick-speaker.current{border-color:color-mix(in srgb, var(--fern) 55%,
   text-underline-offset:3px}
 .tip-quiet{align-self:flex-start; background:none; border:0; padding:0; color:inherit; font:inherit;
   font-size:.88rem; cursor:pointer; text-decoration:underline; text-decoration-thickness:1px;
-  text-underline-offset:3px}.tip-or{font-size:.78rem; color:var(--dim); margin:10px 0 0}
+  text-underline-offset:3px}
+.tip-or{font-size:.78rem; color:var(--dim); margin:10px 0 0}
+/* a tip's way on to its guide page (`guide:`) */
+.tip-more{margin:10px 0 0; font-size:.9rem}
+.tip-more a{color:var(--fern); text-decoration:none}
+.tip-more a:hover, .tip-more a:focus-visible{text-decoration:underline}
 /* the controls a few tips carry under their words (ELIZA's card) */
 .tip-extras{display:flex; flex-direction:column; gap:8px; margin-top:12px}
 .tip-actions{display:flex; align-items:center; gap:12px; margin-top:12px}
@@ -1272,7 +1277,12 @@ button.row.pick-speaker.current{border-color:color-mix(in srgb, var(--fern) 55%,
   cursor:pointer;
 }
 .qmark:hover, .qmark:focus-visible{border-color:var(--fern); color:var(--fern); outline:none}
-.qmark.fresh{border-color:var(--fern); color:var(--fern)}
+/* Lights out (tips.js, `mark()`): lit until its tip is opened, then a quiet fern ring.
+   A guide page's mark, and every mark with tips off, stays plain. Still, on purpose:
+   solid against ring reads without motion. */
+.qmark.unread, .qmark.unread:hover{background:var(--fern); border-color:var(--fern); color:var(--bg)}
+.qmark.unread:focus-visible{outline:2px solid var(--text); outline-offset:2px}
+.qmark.read{border-color:color-mix(in srgb, var(--fern) 70%, var(--inedge)); color:var(--fern)}
 
 .tips-line{display:flex; align-items:center; gap:10px}
 .tips-line .hint{flex:1; margin:0}

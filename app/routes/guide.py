@@ -30,6 +30,8 @@ class PageOut(BaseModel):
     summary: str | None
     #: The version the page describes.
     since: str
+    #: Headings whose (?) opens this page, for sections with no tip.
+    sections: list[str] = []
     #: The page's short version (its `content:`), rendered.
     html: str
     #: The whole page, to read outside the app; null when no docs url is set.

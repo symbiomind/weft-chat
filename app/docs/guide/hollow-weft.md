@@ -4,6 +4,7 @@ id: guide/hollow-weft
 weight: 40
 since: "1"
 summary: A weft that only rings your doorbell, for an agent that lives somewhere else.
+section: weft/door
 content: |
   A weft doesn't need an engine. Make one, leave its engine empty, and give its
   agent the key to the door: that agent can now leave you notifications under

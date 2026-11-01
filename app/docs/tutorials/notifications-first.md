@@ -2,6 +2,7 @@
 id: notifications/first
 page: notifications
 group: core
+guide: guide/notifications
 order: 1
 after: [chat/welcome]
 since: "1"

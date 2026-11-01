@@ -39,6 +39,8 @@ class TipOut(BaseModel):
     after: list[str]
     #: The section of the page its (?) sits on, if any.
     section: str | None
+    #: The guide page it leads on to, and where its (?) goes with tips off.
+    guide: str | None = None
     #: A CSS selector for what it points at, if anything.
     point_at: str | None
     #: The event that finishes it, as well as Got it.

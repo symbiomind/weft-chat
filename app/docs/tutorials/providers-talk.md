@@ -1,7 +1,7 @@
 ---
 id: providers/talk
 page: providers
-section: talk
+section: providers/talk
 group: advanced
 since: "1"
 ---

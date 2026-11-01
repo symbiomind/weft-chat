@@ -1,11 +1,11 @@
 ---
 id: providers/speech
 page: providers
-section: speech
+section: providers/speech
 group: core
 order: 2
 after: [providers/engine]
-point_at: "[data-section=speech]"
+point_at: "[data-section='providers/speech']"
 since: "1"
 ---
 # Voices are optional

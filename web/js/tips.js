@@ -25,11 +25,16 @@
  * ON BY DEFAULT. Every tip carries Turn off tips, and the drawer has the switch, so
  * someone who does not want them is one tap from never seeing another. Off is help
  * off: hidden tips still show on their trigger, because they are a reward, not help.
+ *
+ * THE (?) MARKS. A section heading gets one when a tip or a guide page claims it
+ * (`mark()`). With tips on, a tip's mark is lit until the tip is opened, then a quiet
+ * ring; a page's mark is plain. With tips off every mark is plain and opens the guide:
+ * no progress game for someone who opted out of it.
  */
 
 /** @typedef {{id:string, page:string, group:string, order:number, after:string[],
- *   section:?string, point_at:?string, done_on:?string, show_on:?string, when:?string,
- *   since:string, hint:?string, title:string, html:string}} Tip */
+ *   section:?string, guide:?string, point_at:?string, done_on:?string, show_on:?string,
+ *   when:?string, since:string, hint:?string, title:string, html:string}} Tip */
 /** @typedef {{wefts:number}} Context */
 
 /** @typedef {{id:string, since:string, at:string}} Mark */
@@ -166,6 +171,25 @@ export function createTips({ tips = [], progress = {}, save = () => {} } = {}) {
     /** The tip whose (?) sits on this section, or null. Hidden tips never get one. */
     forSection(section) {
       return list.find((t) => t.section === section && t.group !== "secret") ?? null;
+    },
+
+    /**
+     * The (?) on a section, or null for none. `pages` maps a section to the guide page
+     * that claims it. `look` is unread, read or plain; the mark opens `tip` to read if it
+     * has one, else the guide page `doc`. A tip with no page yet opens even with tips
+     * off, rather than leave a mark that does nothing.
+     *
+     * @param {string} section
+     * @param {Map<string, string>} pages
+     * @returns {?{look: "unread"|"read"|"plain", tip: ?Tip, doc: ?string}}
+     */
+    mark(section, pages) {
+      const tip = list.find((t) => t.section === section && t.group !== "secret");
+      const doc = tip ? tip.guide ?? null : pages.get(section) ?? null;
+      if (!tip && !doc) return null;
+      if (!tip) return { look: "plain", tip: null, doc };
+      if (!state.on) return doc ? { look: "plain", tip: null, doc } : { look: "plain", tip, doc: null };
+      return { look: isDone(tip) ? "read" : "unread", tip, doc };
     },
 
     /**

@@ -124,7 +124,7 @@ export function renderAbout(panels, { tutor }) {
 
   body.append(
     preamble(),
-    el("h3", { class: "about-head" }, [document.createTextNode("WHAT YOU'VE FOUND"), tally]),
+    el("h3", { class: "about-head", "data-section": "about/found" }, [document.createTextNode("WHAT YOU'VE FOUND"), tally]),
     finds,
     way,
     forgetLine,

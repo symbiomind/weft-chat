@@ -195,14 +195,14 @@ export function renderAccount(panels) {
 
   body.append(
     accountCard(user, { sub }),
-    el("h3", { text: "SECURITY" }),
+    el("h3", { text: "SECURITY", "data-section": "account/security" }),
     el("button", {
       type: "button",
       class: "chunk",
       text: "Change password",
       onclick: () => panels.push((p) => renderPasswordPanel(p)),
     }),
-    el("h3", { text: "SIGNED IN ON" }),
+    el("h3", { text: "SIGNED IN ON", "data-section": "account/devices" }),
     devices,
     everywhere,
     confirmRow,

@@ -4,8 +4,8 @@ page: weft
 group: core
 order: 1
 after: [wefts/first]
-section: engine
-point_at: "[data-section=engine]"
+section: weft/engine
+point_at: "[data-section='weft/engine']"
 since: "1"
 ---
 # Choose its engine

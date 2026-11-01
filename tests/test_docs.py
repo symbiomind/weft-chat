@@ -76,10 +76,22 @@ def test_a_page_parses():
     (lambda t: t.split("content:")[0] + "---\n", "`content` is required"),
     (lambda t: t.replace("  - one", "  ## Steps\n\n  - one"), "heading"),
     (lambda t: t.replace("The whole page.", "# Sessions\n\nThe whole page."), "H1"),
+    (lambda t: t.replace("weight: 20", "weight: 20\nsection: door"), "`section`"),
+    (lambda t: t.replace("weight: 20", "weight: 20\nsection: {weft: door}"), "`section`"),
 ])
 def test_a_broken_page_says_why(change, reason):
     with pytest.raises(docs.DocError, match=reason):
         page(text=change(GOOD))
+
+
+def test_a_page_claims_one_section_or_a_list():
+    assert page()["sections"] == []
+    one = GOOD.replace("weight: 20", "weight: 20\nsection: weft/door")
+    assert page(text=one)["sections"] == ["weft/door"]
+    two = GOOD.replace("weight: 20", "weight: 20\nsection: [weft/door, weft/headers]")
+    assert page(text=two)["sections"] == ["weft/door", "weft/headers"]
+    built = docs.build([page(text=two)], URL)
+    assert built["pages"][0]["sections"] == ["weft/door", "weft/headers"]
 
 
 def test_an_index_needs_no_id_or_content():

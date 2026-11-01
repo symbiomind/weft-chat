@@ -372,7 +372,7 @@ export function renderProviders(panels, { onChanged }) {
       // "Engines", the word the Pick menu uses for a weft with none ("no engine"), so
       // it means one thing everywhere. Its + Add sits on its own heading, like the
       // other three: the head is for where you are, not for one section's button.
-      list.replaceChildren(el("div", { class: "section-head", "data-section": "engines" }, [
+      list.replaceChildren(el("div", { class: "section-head", "data-section": "providers/engines" }, [
         el("h2", { text: "Engines" }),
         el("button", { class: "small", text: "+ Add", onclick: addFor("llm") }),
       ]));
@@ -397,7 +397,7 @@ export function renderProviders(panels, { onChanged }) {
       // they live on the same screen rather than behind their own menu entry. A heading
       // is enough to keep them apart.
       list.append(
-        el("div", { class: "section-head", "data-section": "speech" }, [
+        el("div", { class: "section-head", "data-section": "providers/speech" }, [
           el("h2", { text: "Speech" }),
           el("button", { class: "small", text: "+ Add", onclick: addFor("tts") }),
         ]),
@@ -415,7 +415,7 @@ export function renderProviders(panels, { onChanged }) {
       }
 
       list.append(
-        el("div", { class: "section-head", "data-section": "sessions" }, [
+        el("div", { class: "section-head", "data-section": "providers/sessions" }, [
           el("h2", { text: "Sessions" }),
           el("button", { class: "small", text: "+ Add", onclick: addFor("session") }),
         ]),
@@ -433,7 +433,7 @@ export function renderProviders(panels, { onChanged }) {
       }
 
       list.append(
-        el("div", { class: "section-head", "data-section": "talk" }, [
+        el("div", { class: "section-head", "data-section": "providers/talk" }, [
           el("h2", { text: "Push to talk" }),
           el("button", { class: "small", text: "+ Add", onclick: addFor("stt") }),
         ]),

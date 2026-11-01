@@ -308,7 +308,7 @@ export function renderWeft(panels, {
 
     paint();
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/colours" }, [
       el("h2", { class: "section-title", text: "Colours" }),
       preview,
       el("div", { class: "colour-pickers" }, [
@@ -448,7 +448,7 @@ export function renderWeft(panels, {
 
     paint();
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/background" }, [
       el("h2", { class: "section-title", text: "Background" }),
       frames,
       note,
@@ -715,7 +715,7 @@ export function renderWeft(panels, {
 
     paint();
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/history" }, [
       el("h2", { class: "section-title", text: "History" }),
 
       el("label", { for: "pick-history", text: "this window keeps" }),
@@ -878,7 +878,7 @@ export function renderWeft(panels, {
 
     paint();
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/headers" }, [
       el("h2", { class: "section-title", text: "Request headers" }),
       note,
       el("details", { class: "advanced", ...(stored.length ? { open: "" } : {}) }, [
@@ -1048,7 +1048,7 @@ export function renderWeft(panels, {
     paint();
     reread();
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/door" }, [
       el("h2", { class: "section-title", text: "Agent door" }),
       el("p", {
         class: "hint",
@@ -1103,7 +1103,7 @@ export function renderWeft(panels, {
       }
     });
 
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/name" }, [
       el("h2", { class: "section-title", text: "Name" }),
       field,
       nameError,
@@ -1305,7 +1305,7 @@ export function renderWeft(panels, {
 
     paintNow();
 
-    return el("div", { class: "panel-form panel-section", "data-section": "engine" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/engine" }, [
       el("h2", { class: "section-title", text: "Engine" }),
       now,
       el("label", { for: "weft-provider", text: "provider" }),
@@ -1451,7 +1451,7 @@ export function renderWeft(panels, {
     };
     paint();
 
-    return el("div", { class: "panel-form panel-section", "data-section": "hearing" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/hearing" }, [
       el("h2", { class: "section-title", text: "Hearing" }),
       el("label", { for: "weft-ears", text: "hear me with" }),
       choice,
@@ -1492,7 +1492,7 @@ export function renderWeft(panels, {
         onclick: () => confirm.replaceWith(ask),
       }),
     ]);
-    return el("div", { class: "panel-form panel-section" }, [
+    return el("div", { class: "panel-form panel-section", "data-section": "weft/delete" }, [
       el("h2", { class: "section-title", text: "Delete" }),
       el("p", {
         class: "hint",
@@ -1698,7 +1698,7 @@ export function renderWeft(panels, {
       // The voice section owns `error`, `status` and `body` between them — it is the
       // half of this panel that talks to somebody else's server and so the half that
       // has something to report.
-      el("div", { class: "panel-form panel-section" }, [
+      el("div", { class: "panel-form panel-section", "data-section": "weft/voice" }, [
         el("h2", { class: "section-title", text: "Voice" }),
         voiceNow,
         el("div", { class: "row-confirm" }, [silence]),

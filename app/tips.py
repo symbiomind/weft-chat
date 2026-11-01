@@ -8,6 +8,8 @@ says where it shows and what has to come first::
     id: providers/engine        # stable: progress is kept against this, not the filename
     page: providers             # where it shows by itself
     group: core                 # core | advanced | secret
+    section: providers/engines  # its (?) sits on this heading: [data-section=...]
+    guide: guide/engines        # the guide page it leads on to, and where (?) goes
     after: [drawer/start]       # tips that must be done (or not apply) first
     done_on: providers-changed  # doing this finishes it, as well as Got it
     ---
@@ -79,6 +81,9 @@ CONDITIONS = {"no-wefts", "core-done"}
 HINT_MAX = 60
 
 _ID = re.compile(r"^[a-z0-9][a-z0-9/-]*$")
+#: A section is named with its page first, `weft/door`: the same word can head a
+#: section on two pages (`weft/engine`, `providers/engines`).
+SECTION = re.compile(r"^[a-z0-9-]+/[a-z0-9-]+$")
 _FRONT = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 
 
@@ -133,6 +138,13 @@ def parse(text: str) -> dict:
     if when is not None and when not in CONDITIONS:
         raise TipError(f"`when` must be one of {sorted(CONDITIONS)}")
 
+    section = _optional_str(meta, "section")
+    if section is not None and not SECTION.match(section):
+        raise TipError("`section` names its page first: `providers/engines`")
+    guide = _optional_str(meta, "guide")
+    if guide is not None and not (guide.startswith("guide/") and _ID.match(guide)):
+        raise TipError("`guide` is a guide page's id: `guide/<name>`")
+
     hint = _optional_str(meta, "hint")
     if hint is not None and (group != "secret" or len(hint) > HINT_MAX):
         raise TipError(f"`hint` is for hidden tips only, at most {HINT_MAX} characters")
@@ -148,7 +160,8 @@ def parse(text: str) -> dict:
         "group": group,
         "order": order,
         "after": after,
-        "section": _optional_str(meta, "section"),
+        "section": section,
+        "guide": guide,
         "point_at": _optional_str(meta, "point_at"),
         "done_on": meta.get("done_on"),
         "show_on": meta.get("show_on"),

@@ -14,6 +14,7 @@ One page::
     weight: 40                       # order in the list, lower first (Hugo's own field)
     since: "1"                       # the version it describes
     summary: One line for the list row.
+    section: weft/door               # a heading (or a list of them) whose (?) opens this
     content: |
       The short version, read on a phone. This is all the app shows of the page, so it
       keeps to the small markdown tips use: no headings.
@@ -30,6 +31,9 @@ written. Here, one to another guide page opens it in the app (``doc:<id>``), and
 anything else under ``app/docs/`` goes out to the docs url. ``doc:`` and ``tip:`` work
 too, for the app only.
 
+**A page can claim sections** with no tip of their own: their (?) opens the page. A
+section with a tip is the tip's, and the tip's ``guide:`` names the page instead.
+
 **A bad page is skipped, not fatal**, as with tips: ``load`` logs and leaves it out, and
 ``tests/test_docs.py`` runs the strict check over every shipped file.
 """
@@ -43,6 +47,7 @@ import yaml
 
 from app import config
 from app.markdown import render_markdown
+from app.tips import SECTION
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +113,13 @@ def parse(text: str, path: str) -> dict:
     if content and _HEADING.search(content):
         raise DocError("`content` has a heading: keep it to paragraphs and lists")
 
+    sections = meta.get("section") or []
+    if isinstance(sections, str):
+        sections = [sections]
+    if not isinstance(sections, list) or not all(
+            isinstance(x, str) and SECTION.match(x) for x in sections):
+        raise DocError("`section` names a heading, page first: `weft/door`, or a list")
+
     body = (match.group(2) or "").lstrip()
     if body.startswith("# "):
         raise DocError("the body starts with a # heading: the title is the H1, use ##")
@@ -120,6 +132,7 @@ def parse(text: str, path: str) -> dict:
         "weight": weight,
         "since": _optional_str(meta, "since") or "",
         "summary": _optional_str(meta, "summary"),
+        "sections": sections,
         "content": content or "",
     }
 
@@ -178,6 +191,7 @@ def build(pages: list[dict], docs_url: str) -> dict:
             "title": page["title"],
             "summary": page["summary"],
             "since": page["since"],
+            "sections": page["sections"],
             "html": html,
             "url": f"{docs_url}/{page['path']}" if docs_url else None,
         })

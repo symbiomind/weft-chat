@@ -722,6 +722,14 @@
             "title": "Id",
             "type": "string"
           },
+          "sections": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
           "since": {
             "title": "Since",
             "type": "string"
@@ -1315,6 +1323,17 @@
           "group": {
             "title": "Group",
             "type": "string"
+          },
+          "guide": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide"
           },
           "hint": {
             "anyOf": [

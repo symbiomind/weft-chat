@@ -119,6 +119,31 @@ describe("tips", () => {
     assert.equal(tips.event("wordmark-x3", SET_UP).show.id, "drawer/egg");
   });
 
+  it("light a tip's (?) until it is opened, then put the light out", () => {
+    const tips = createTips({ tips: [tip("p/e", "p", { section: "p/e", guide: "guide/e" })] });
+    const none = new Map();
+    assert.deepEqual(tips.mark("p/e", none), { look: "unread", tip: tips.get("p/e"), doc: "guide/e" });
+    tips.finish("p/e");
+    assert.equal(tips.mark("p/e", none).look, "read");
+  });
+
+  it("give a section a guide page claims a plain (?) that opens the page", () => {
+    const pages = new Map([["p/h", "guide/h"]]);
+    assert.deepEqual(make().mark("p/h", pages), { look: "plain", tip: null, doc: "guide/h" });
+    assert.equal(make().mark("p/nothing", pages), null);
+  });
+
+  it("with tips off, make every (?) plain and go straight to the guide", () => {
+    const list = [
+      tip("p/e", "p", { section: "p/e", guide: "guide/e" }),
+      tip("p/s", "p", { section: "p/s" }),
+    ];
+    const tips = createTips({ tips: list, progress: { on: false } });
+    assert.deepEqual(tips.mark("p/e", new Map()), { look: "plain", tip: null, doc: "guide/e" });
+    // No page yet: the tip itself, rather than a mark that does nothing.
+    assert.deepEqual(tips.mark("p/s", new Map()), { look: "plain", tip: tips.get("p/s"), doc: null });
+  });
+
   it("give a hidden tip no (?)", () => {
     const tips = createTips({ tips: [tip("x", "drawer", { group: "secret", section: "s" })] });
     assert.equal(tips.forSection("s"), null);
