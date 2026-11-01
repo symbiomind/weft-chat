@@ -895,8 +895,8 @@ export function renderChat(root) {
       screen("Wefts", panels.PURPOSE.wefts, openWefts),
       screen("Providers", panels.PURPOSE.providers, openProviders),
       el("div", { class: "drawer-rule" }),
-      screen("Guide", panels.PURPOSE.guide, openGuide),
       screen("Comfort", panels.PURPOSE.comfort, openComfort),
+      screen("Guide", panels.PURPOSE.guide, openGuide),
       screen("About", panels.PURPOSE.about, openAbout),
       el("div", { class: "drawer-rule" }),
     );
