@@ -91,6 +91,14 @@ import { renderNotifications } from "./notifications.js";
 /** Where the current pick is remembered. Per device, per browser, and that is all. */
 const PICK_KEY = "weft.pick";
 
+/**
+ * How long a reply may go quiet mid-stream before what it has said so far counts as a
+ * paragraph. A gateway that runs tools between sentences sends no sign of the tool
+ * call, only a silence; gaps between words are tens of milliseconds, tool calls are
+ * seconds, so a fixed two seconds tells them apart on any model.
+ */
+const PAUSE_MS = 2_000;
+
 function rememberPick(entry) {
   // Storage can throw outright in a private window or with site data blocked. Losing
   // the remembered pick is a shrug; taking the chat window down with it is not.
@@ -2092,6 +2100,19 @@ export function renderChat(root) {
     const segmenter = say ? createSegmenter() : null;
     let speaking = false;
 
+    // Re-armed by every delta, so it only fires once the reply has started and then
+    // gone quiet: before the first word the silence is thinking, and the donut has it.
+    // What it does is what a blank line would have done, for the voice and for the
+    // still pace — say what is held, and show it.
+    let pauseTimer = null;
+    const pause = () => {
+      if (segmenter) for (const segment of segmenter.pause()) say(segment);
+      if (pace === "still" && reply.length > paintedUpTo) {
+        paintedUpTo = reply.length;
+        paintReply(reply);
+      }
+    };
+
     try {
       for await (const event of streamChat({
         // `pick`, not `current`: this turn belongs to the thread it started in, even if
@@ -2138,6 +2159,9 @@ export function renderChat(root) {
         // Each completed paragraph goes to the voice the moment it is complete, so the
         // first one is being read aloud while the model is still writing the second.
         if (segmenter) for (const segment of segmenter.push(event.delta)) say(segment);
+
+        clearTimeout(pauseTimer);
+        pauseTimer = setTimeout(pause, PAUSE_MS);
       }
 
       // Whatever the last paragraph was, finished or not — it is still something the
@@ -2167,6 +2191,7 @@ export function renderChat(root) {
     } finally {
       // A calm repaint still waiting would otherwise land after the finished text.
       clearTimeout(paintTimer);
+      clearTimeout(pauseTimer);
       // Once per turn, never per token: a storage write is synchronous on the main
       // thread and one per frame would stutter the canvas drawing the reply. Here in
       // the finally rather than after the push, so a turn that failed is committed in

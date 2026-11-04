@@ -206,6 +206,33 @@ describe("flush", () => {
   });
 });
 
+describe("pause", () => {
+  it("lets go of what is held, and the stream carries on", () => {
+    // The shape of a tool call: no blank line between the two, only a silence.
+    const s = createSegmenter();
+    s.push("Let me do that now!");
+
+    assert.deepEqual(s.pause(), ["Let me do that now!"]);
+    assert.deepEqual(s.push("Done!\n\nNext."), ["Done!"]);
+    assert.deepEqual(s.flush(), ["Next."]);
+  });
+
+  it("holds an open code fence rather than cut it in half", () => {
+    const s = createSegmenter();
+    s.push("Here:\n\n```js\nconst a = 1;");
+    assert.deepEqual(s.pause(), []);
+
+    // Had it cut, the closing fence would read as an opening one and swallow this.
+    assert.deepEqual(s.push("\n```\n\nAfter.\n\n"), ["```js\nconst a = 1;\n```", "After."]);
+  });
+
+  it("is silent when nothing is held", () => {
+    const s = createSegmenter();
+    s.push("Whole.\n\n");
+    assert.deepEqual(s.pause(), []);
+  });
+});
+
 describe("forSpeech", () => {
   it("removes fenced code entirely", () => {
     assert.equal(forSpeech("Try this:\n```js\nconst x = 1;\n```\nDone."), "Try this: Done.");

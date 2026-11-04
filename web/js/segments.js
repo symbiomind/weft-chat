@@ -143,6 +143,26 @@ export function createSegmenter({ softMax = 400 } = {}) {
       return rest ? [rest] : [];
     },
 
+    /**
+     * The stream went quiet mid-reply. Returns what is held, as `flush()` would, but
+     * the stream is still open and more may follow.
+     *
+     * This is the one cut that depends on HOW the text arrived, and it breaks the rule
+     * above on purpose. An agent that calls a tool between two sentences leaves no
+     * blank line between them, only a silence; without this, "Let me do that now!"
+     * waits through the whole tool call and is said together with "Done!". A replay
+     * has no silence to go by, so it reads those two as one segment, and that one clip
+     * is bought once more. No tool is running on replay, so it is also how they should
+     * sound there.
+     *
+     * Never inside an open code fence: the remainder would start with the closing
+     * fence, and every cut after it would think it was inside one.
+     */
+    pause() {
+      if (insideFence(buffer.length)) return [];
+      return this.flush();
+    },
+
     /** For tests and for anyone wondering why nothing is being spoken yet. */
     get pending() {
       return buffer;
