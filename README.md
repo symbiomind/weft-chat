@@ -143,8 +143,9 @@ docker exec weft-chat python3 -m scripts.add_user bob --role admin
 The password is printed once and lives nowhere else. It opens one door: the screen
 where its holder chooses their own.
 
-**6. Open the window** at your origin, add a provider in Settings, and give the weft a
-name, a colour and a face.
+**6. Open the window** at your origin and sign in. Open the ☰ menu, add an engine under
+**Providers**, then make a weft under **Wefts** and give it that engine and a model. The
+**Guide** in the same menu walks through it, starting with *Getting started*.
 
 ---
 
