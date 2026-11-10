@@ -100,8 +100,8 @@ appears.
 
 The provider you set here is used by every weft. To give one weft different ears, or
 turn push to talk off for it, open that weft's page and use **Hearing**, choosing
-under **hear me with**. The language and the other settings still come from your
-account's.
+under **hear me with**. A provider of its own gets its own **model** field there; the
+language and the two switches still come from your account.
 
 **Tell the weft it was spoken** puts `[spoken]` in front of what the weft receives,
 so it can forgive the odd word the transcription got wrong. You never see it.
