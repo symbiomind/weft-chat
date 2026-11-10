@@ -354,8 +354,11 @@ def _extra_headers(stored: list | None) -> dict[str, str]:
 
 #: Chat needs a different clock from model discovery. The connection should still fail
 #: fast, but a model that thinks for four minutes before its first token is a model
-#: doing its job, not a hung request.
-CHAT_TIMEOUT = httpx.Timeout(connect=15.0, read=300.0, write=30.0, pool=15.0)
+#: doing its job, not a hung request. And an agent is not only a model: one working
+#: through a long run of tool calls can send nothing at all for many minutes, through a
+#: gateway that streams only the words. So the read clock is generous, fifteen minutes
+#: of silence. The route keeps the browser's side of the connection alive meanwhile.
+CHAT_TIMEOUT = httpx.Timeout(connect=15.0, read=900.0, write=30.0, pool=15.0)
 
 
 def chat_url(base_url: str) -> str:
@@ -454,6 +457,11 @@ async def stream_chat(base_url: str, secret: str, payload: dict, *,
     except httpx.RequestError as exc:
         await client.aclose()
         raise UpstreamError(f"Could not reach {base_url} ({type(exc).__name__}).") from exc
+    except BaseException:
+        # Cancelled while waiting for the headers: the person closed the tab, or the
+        # route gave up on this call. The client still owns a pool to close.
+        await client.aclose()
+        raise
 
     async def abort() -> None:
         await stream.__aexit__(None, None, None)

@@ -25,6 +25,9 @@ The contract, deliberately tiny::
     data: {"error": "what went wrong, in the provider's own words"}
     data: [DONE]
 
+and, between them, ``: keep-alive`` when nothing else has been sent for a while: an SSE
+comment, which every client skips (see *The quiet* below).
+
 **Errors before the first token are a 502; errors after it are an error frame.** That is
 not a design choice, it is HTTP: once a 200 and its headers are on the wire there is no
 status code left to change. So everything that can be checked is checked before the
@@ -44,8 +47,20 @@ is upstream, like the gateway, and this route forwards to it exactly as it forwa
 the model. A store that fails costs a saved turn, reported in an error frame, never the
 reply. Everything about the store is resolved before the response begins, so the stream
 itself touches no database.
+
+**The quiet** (2026-11-10). A proxy in front of Weft, Cloudflare's tunnel for one, closes
+a response that sends nothing for about a hundred seconds. An agent working through tool
+calls behind a gateway that streams only its words can be silent far longer than that,
+and some gateways hold even their headers back until they have words to send. So the
+stream says something when it has nothing to say: a ``: keep-alive`` comment after
+``KEEPALIVE_SECONDS`` of silence. And the route waits only ``HEADER_GRACE_SECONDS`` for
+the upstream's headers before starting its own reply anyway. An upstream that answers
+inside that grace (nearly all of them, and every one that fails fast) still gets the
+honest 502 above; one that is still thinking after it has its failures reported in the
+stream, like any other failure after the 200.
 """
 
+import asyncio
 import json
 import logging
 from typing import Literal
@@ -80,6 +95,19 @@ router = APIRouter(
 #: this process allocates.
 MAX_MESSAGE_CHARS = 32_768
 MAX_MESSAGES = 200
+
+#: How long the route waits for the upstream's headers before it begins its own reply.
+#: Long enough that a bad token, a wrong URL or a gateway that is down still answers as
+#: a status code; short enough that nothing in front of Weft has started counting.
+HEADER_GRACE_SECONDS = 5.0
+
+#: Silence on the stream after which a keep-alive goes out. Well inside the hundred
+#: seconds Cloudflare allows, and the comment is a dozen bytes.
+KEEPALIVE_SECONDS = 15.0
+
+#: An SSE comment: a line starting with a colon. Clients skip it (web/js/session.js
+#: parseFrame keeps only ``data:`` lines), so it keeps a proxy awake and nothing else.
+KEEPALIVE = ": keep-alive\n\n"
 
 
 class Message(BaseModel):
@@ -222,19 +250,28 @@ async def chat(
         "stream": True,
     }
 
+    opening = asyncio.ensure_future(upstream.stream_chat(
+        provider.base_url, secret, payload, extra_headers=weft.headers
+    ))
     try:
-        deltas = await upstream.stream_chat(
-            provider.base_url, secret, payload, extra_headers=weft.headers
-        )
+        deltas = await asyncio.wait_for(asyncio.shield(opening), HEADER_GRACE_SECONDS)
+    except TimeoutError:
+        # Still thinking. Begin the reply and go on waiting inside it, where the
+        # keep-alives can reach the proxy (see "The quiet" above).
+        deltas = None
     except upstream.UpstreamError as exc:
         # Nothing has been sent yet, so this can still be an honest status code.
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    except BaseException:
+        opening.cancel()
+        raise
 
     async def body_stream():
         reply: list[str] = []
         try:
             try:
-                async for delta in deltas:
+                stream = deltas if deltas is not None else await opening
+                async for delta in stream:
                     reply.append(delta)
                     yield _frame({"delta": delta})
             except upstream.UpstreamError as exc:
@@ -256,6 +293,8 @@ async def chat(
                 if notice:
                     yield _frame({"error": notice})
         finally:
+            # A reply abandoned before the upstream answered leaves the opening running.
+            opening.cancel()
             yield "data: [DONE]\n\n"
 
     return _stream(body_stream())
@@ -280,9 +319,45 @@ def _eliza(body: ChatIn, user: User) -> StreamingResponse:
     return _stream(body_stream())
 
 
+async def _keepalive(frames, every: float | None = None):
+    """``frames``, with a ``KEEPALIVE`` wherever ``every`` seconds pass without one.
+
+    The next frame is awaited as a task rather than directly, so the wait can be
+    interrupted by the clock without cancelling it: the same pending frame is waited on
+    again after each keep-alive, and the generator never notices the quiet.
+    """
+    every = KEEPALIVE_SECONDS if every is None else every
+    pending = None
+    try:
+        while True:
+            if pending is None:
+                pending = asyncio.ensure_future(anext(frames))
+            done, _ = await asyncio.wait({pending}, timeout=every)
+            if not done:
+                yield KEEPALIVE
+                continue
+            task, pending = pending, None
+            try:
+                frame = task.result()
+            except StopAsyncIteration:
+                return
+            yield frame
+    finally:
+        # The client went away mid-wait. A generator cannot be closed while one of its
+        # steps is running, so stop that step first, then close it, which runs its
+        # finally blocks (the upstream socket is shut there).
+        if pending is not None:
+            pending.cancel()
+            try:
+                await pending
+            except BaseException:
+                pass
+        await frames.aclose()
+
+
 def _stream(frames) -> StreamingResponse:
     return StreamingResponse(
-        frames,
+        _keepalive(frames),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-store",

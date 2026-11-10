@@ -15,11 +15,13 @@ The assertions that would matter:
 The upstream call is stubbed; its own parsing lives in tests/test_upstream.py.
 """
 
+import asyncio
 import json
 
 import pytest
 
 from app import upstream
+from app.routes import chat
 from tests.test_auth_routes import PASSWORD, login, make_user
 from tests.test_provider_routes import SECRET, add_provider, signed_in
 from tests.test_weft_routes import add_weft
@@ -227,6 +229,123 @@ async def test_an_unexpected_mid_stream_exception_still_closes_the_stream(
     assert deltas(response.text) == "start"
     assert any("broke mid-reply" in f.get("error", "") for f in frames(response.text))
     assert response.text.rstrip().endswith("data: [DONE]")
+
+
+# ---------------------------------------------------------------------------
+# The quiet: an agent at work sends nothing for minutes
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def quick_clock(monkeypatch):
+    """Grace and keep-alive in hundredths of a second, so the tests can wait them out."""
+    monkeypatch.setattr(chat, "HEADER_GRACE_SECONDS", 0.05)
+    monkeypatch.setattr(chat, "KEEPALIVE_SECONDS", 0.02)
+
+
+@pytest.mark.asyncio
+async def test_a_silence_between_deltas_is_filled_with_keep_alives(
+    csrf_client, session, monkeypatch, quick_clock,
+):
+    """A proxy closes a response that says nothing for too long (Cloudflare: about a
+    hundred seconds). An agent busy with tool calls says nothing for longer than that."""
+    weft_id = await ready(csrf_client, session)
+
+    async def fake(base_url, secret, payload, **_):
+        async def gen():
+            yield "Looking"
+            await asyncio.sleep(0.15)
+            yield " into it."
+        return gen()
+
+    monkeypatch.setattr(upstream, "stream_chat", fake)
+    response = await csrf_client.post("/api/chat", json=say(weft_id))
+
+    assert response.status_code == 200
+    assert deltas(response.text) == "Looking into it."
+    rest = response.text.split("Looking", 1)[1]
+    assert chat.KEEPALIVE.strip() in rest.split("into it", 1)[0]
+
+
+@pytest.mark.asyncio
+async def test_an_upstream_slow_to_answer_still_gets_a_reply_started(
+    csrf_client, session, monkeypatch, quick_clock,
+):
+    """Some gateways hold even their headers back until they have words. The reply
+    begins after the grace and waits inside the stream, where keep-alives can go out."""
+    weft_id = await ready(csrf_client, session)
+
+    async def slow(base_url, secret, payload, **_):
+        await asyncio.sleep(0.2)
+
+        async def gen():
+            yield "Done at last"
+        return gen()
+
+    monkeypatch.setattr(upstream, "stream_chat", slow)
+    response = await csrf_client.post("/api/chat", json=say(weft_id))
+
+    assert response.status_code == 200
+    assert response.text.startswith(chat.KEEPALIVE)
+    assert deltas(response.text) == "Done at last"
+    assert response.text.rstrip().endswith("data: [DONE]")
+
+
+@pytest.mark.asyncio
+async def test_a_slow_upstream_that_then_fails_reports_it_in_the_stream(
+    csrf_client, session, monkeypatch, quick_clock,
+):
+    """Past the grace the 200 is already sent, so the failure is an error frame."""
+    weft_id = await ready(csrf_client, session)
+
+    async def slow_boom(base_url, secret, payload, **_):
+        await asyncio.sleep(0.15)
+        raise upstream.UpstreamError("https://api.example.test/v1 answered 500: oops")
+
+    monkeypatch.setattr(upstream, "stream_chat", slow_boom)
+    response = await csrf_client.post("/api/chat", json=say(weft_id))
+
+    assert response.status_code == 200
+    assert [f["error"] for f in frames(response.text) if "error" in f] == [
+        "https://api.example.test/v1 answered 500: oops"
+    ]
+    assert response.text.rstrip().endswith("data: [DONE]")
+
+
+@pytest.mark.asyncio
+async def test_a_fast_failure_is_still_a_502_with_the_quick_clock(
+    csrf_client, session, monkeypatch, quick_clock,
+):
+    """The grace exists so that the honest status code survives for the common case."""
+    weft_id = await ready(csrf_client, session)
+
+    async def boom(base_url, secret, payload, **_):
+        raise upstream.UpstreamError("nope")
+
+    monkeypatch.setattr(upstream, "stream_chat", boom)
+    response = await csrf_client.post("/api/chat", json=say(weft_id))
+
+    assert response.status_code == 502
+
+
+@pytest.mark.asyncio
+async def test_closing_a_keepalive_stream_mid_wait_closes_what_it_wraps():
+    """The tab closes while the stream is waiting on the next frame: the wrapped
+    generator's cleanup still runs, which is where the upstream socket is shut."""
+    closed = asyncio.Event()
+
+    async def frames():
+        try:
+            yield "data: one\n\n"
+            await asyncio.sleep(10)
+            yield "data: never\n\n"
+        finally:
+            closed.set()
+
+    wrapped = chat._keepalive(frames(), every=0.01)
+    assert await anext(wrapped) == "data: one\n\n"
+    assert await anext(wrapped) == chat.KEEPALIVE
+    await wrapped.aclose()
+    assert closed.is_set()
 
 
 # ---------------------------------------------------------------------------
