@@ -2,6 +2,7 @@
 id: chat/shelf
 page: chat
 group: core
+guide: guide/send-shelf
 order: 3
 after: [chat/pick]
 point_at: "#bar button[type=submit]"

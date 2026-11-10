@@ -307,12 +307,11 @@ export function renderChat(root) {
     onChange: keepNewestInView,
   });
 
-  // Hold or swipe up on send for more ways to send. Push to talk is still a
-  // placeholder; a tap only says so.
+  // Hold or swipe up on send for more ways to send. Attach is a tap; push to talk is a
+  // hold, wired below, and its petal swallows its own clicks.
   const shelf = createSendShelf(sendButton, {
     onPetal: (act) => {
       if (act === "attach") tray.choose();
-      else shelf.flash(act, "coming soon");
     },
     onToggle: (open) => {
       keepNewestInView();

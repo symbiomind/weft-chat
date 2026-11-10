@@ -3,6 +3,7 @@ id: providers/talk
 page: providers
 section: providers/talk
 group: advanced
+guide: guide/send-shelf
 since: "1"
 ---
 # Push to talk

@@ -19,7 +19,9 @@
  * shelf must keep working then, because push to talk during a reply is the whole
  * reason it exists.
  *
- * The petals are placeholders for now: the caller decides what each one does.
+ * The shelf only holds the petals; the caller decides what each one does. In chat, a
+ * tap on attach opens the picture picker, and push to talk handles its own presses
+ * (web/js/ptt.js), so a tap on its petal never reaches `onPetal`.
  */
 
 import { el } from "./dom.js";

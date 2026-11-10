@@ -61,8 +61,8 @@ def test_no_core_tip_waits_on_a_hidden_one():
 #: tip. This list only shrinks: a new tip without a page fails, and so does a tip on it
 #: that has gained one. It is the docs to-do list.
 NO_GUIDE_YET = {
-    "chat/welcome", "chat/pick", "chat/shelf", "drawer/start", "wefts/first",
-    "providers/engine", "providers/speech", "providers/sessions", "providers/talk",
+    "chat/welcome", "chat/pick", "drawer/start", "wefts/first",
+    "providers/engine", "providers/speech", "providers/sessions",
     "weft/engine",
 }
 
