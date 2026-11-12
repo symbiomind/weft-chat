@@ -116,8 +116,7 @@ def messages_from_events(events: list[dict]) -> list[dict]:
         pictures = attachments.from_body(body)
         spoken = isinstance(body, dict) and body.get("spoken") is True
         if pictures or spoken:
-            message["content"] = attachments.strip_marker(
-                event["text"], [p["name"] for p in pictures], spoken)
+            message["content"] = attachments.strip_marker(event["text"], pictures, spoken)
         if pictures:
             message["attachments"] = pictures
         if spoken:

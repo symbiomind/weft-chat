@@ -1,13 +1,15 @@
 """
-Weft's MCP door: an agent shows its user a picture.
+Weft's MCP door: an agent shows its user a picture, or hands them a file.
 
-A weft's agent can make a picture (a screenshot, a chart, a photo it found) on a
-machine Weft cannot see. This door is how the picture gets into Weft. The agent adds
+A weft's agent can make a picture (a screenshot, a chart, a photo it found) or a file
+(a song, a PDF it fetched) on a machine Weft cannot see. This door is how it gets into
+Weft. The agent adds
 Weft's MCP server to its config with a key minted for one weft, and gains four tools:
 
 * ``upload`` hands back a one-time address. The agent sends the file there with its
   shell (``curl -T``), and the answer is the line to write in its reply, which the chat
-  window shows as the picture (web/js/references.js).
+  window shows as the picture, or as a card for a file (web/js/references.js). It
+  lands in the user's gallery (app/gallery.py).
 * ``view`` gives a stored picture back to the agent as an image, so an agent that can
   only see pictures in tool results can still look at what it showed.
 * ``notify`` leaves the user a report to read when they next open Weft:
@@ -22,10 +24,10 @@ output tokens: a 200KB screenshot is roughly 70,000 of them, slow, expensive and
 to garble. So the tool call carries only a name, and the bytes go over plain HTTP from
 the agent's shell, never through the model.
 
-**Ownership.** A key belongs to one weft, and a weft to one user. The picture lands in
-that user's attachment folder through the same re-encode as a 📎 upload
-(app/attachments.py), so the folder is still the whole ownership check: the key can
-only ever add to, and read back from, its own user's pictures.
+**Ownership.** A key belongs to one weft, and a weft to one user. An upload lands in
+that user's attachment folder the same way a 📎 upload does (app/gallery.py), so the
+folder is still the whole ownership check: the key can only ever add to, and read back
+from, its own user's files.
 
 **Tickets and limits live in this process.** The service runs one worker (see
 app/server.py), so an in-memory table is the whole truth. A restart forgets every open
@@ -165,7 +167,8 @@ def open_ticket(caller: Caller, name: str | None) -> str:
     _tickets[hash_token(raw)] = Ticket(
         user_id=caller.user_id,
         weft_id=caller.weft_id,
-        name=attachments.clean_name(name),
+        # Empty when the agent gave none: the gallery names it once it knows what it is.
+        name=attachments.clean_name(name, ""),
         expires=now + TICKET_SECONDS,
     )
     asked.append(now)
@@ -192,9 +195,15 @@ def upload_url(raw: str) -> str:
     return f"{config.public_origin()}/api/door/upload/{raw}"
 
 
-def reference(digest: str, name: str) -> str:
-    """The line an agent writes in its reply to show a picture."""
-    return f"![{name}]({config.public_origin()}/api/attachments/{digest})"
+def reference(digest: str, name: str, kind: str = "picture") -> str:
+    """The line an agent writes in its reply to show a picture, or hand over a file.
+
+    A picture is a markdown image, a file a markdown link: the window shows the one as
+    the picture and the other as a card to play, open or download
+    (web/js/references.js).
+    """
+    bang = "" if kind == "file" else "!"
+    return f"{bang}[{name}]({config.public_origin()}/api/attachments/{digest})"
 
 
 # ---------------------------------------------------------------------------
@@ -253,8 +262,8 @@ def guide(key: str, weft_name: str) -> str:
     return f"""# Connect to Weft
 
 Weft is the chat window your user reads you in. This connects you to Weft's MCP server,
-which lets you show your user pictures in your replies, and leave them notifications to
-read when they are away. You are connecting as the weft "{weft_name}".
+which lets you show your user pictures and hand them files in your replies, and leave
+them notifications to read when they are away. You are connecting as the weft "{weft_name}".
 
 ## Your connection
 
@@ -284,16 +293,19 @@ Hermes Agent, in `~/.hermes/config.yaml`:
 Many harnesses load MCP servers only at startup, so you may need a restart, or to ask
 your user for one. Then call the `status` tool: it names the weft "{weft_name}".
 
-## Showing a picture
+## Showing a picture, or handing over a file
 
-1. Call `upload` with a caption. It gives you a one-time address.
+1. Call `upload` with a name: a picture's caption, or a file's name with its ending.
+   It gives you a one-time address.
 2. Send the file there from your shell: `curl -sS -T <file> '<address>'`
 3. The answer is JSON. Write its `reference` line in your reply exactly as given, on
-   its own line and not inside a code block. Weft shows the picture there.
+   its own line and not inside a code block. Weft shows a picture there, and a file as
+   a card your user can play, open or download.
 
-JPEG, PNG, WebP and GIF are accepted, up to 20 MB. An address works once, for ten
-minutes. Your conversation keeps the reference line, not the picture, so to look at one
-again later call `view` with its reference.
+Pictures (JPEG, PNG, WebP and GIF) are accepted up to 20 MB, and PDFs, sound, video and
+plain text up to 100 MB. An address works once, for ten minutes. What you upload also
+stays in your user's gallery. Your conversation keeps the reference line, not the file,
+so to look at a picture again later call `view` with its reference.
 
 If your shell cannot reach the address (some sandboxes block local network addresses),
 tell your user rather than guessing at another way in.
@@ -308,8 +320,8 @@ answer says it was delivered, so there is no need to send it again.
 Send what your user would want to read when they get back: a job finished, a question
 only they can answer, something gone wrong. Not every step. A weft can send
 {notifications.PER_HOUR} an hour, and only the newest {notifications.MAX_WAITING} wait,
-so many small reports bury each other. A picture shows too: put its `reference` line
-from `upload` in the body. `status` says how many of yours are still waiting, which is
+so many small reports bury each other. A picture or file shows too: put its `reference`
+line from `upload` in the body. `status` says how many of yours are still waiting, which is
 how you can tell whether they have been read.
 
 ## When you are done
@@ -338,8 +350,9 @@ def build_server():
         "weft",
         instructions=(
             "Weft is the window your user reads you in. Use upload to show them a "
-            "picture: it gives you an address to send the file to with curl, and the "
-            "line to write in your reply or in a notify body. Use view to look at a "
+            "picture or hand them a file (a song, a PDF): it gives you an address to "
+            "send the file to with curl, and the line to write in your reply or in a "
+            "notify body. Use view to look at a "
             "picture you showed. Use notify to leave your user a report to read when "
             "they are away, such as when a long job you were left to do finishes."
         ),
@@ -355,18 +368,21 @@ def build_server():
     )
 
     @server.tool(structured_output=False)
-    def upload(ctx: Context, name: str = "picture") -> str:
-        """Get a one-time address to upload a picture to, so your user can see it.
+    def upload(ctx: Context, name: str = "") -> str:
+        """Get a one-time address to upload a picture or file to, for your user.
 
         Send the file's bytes to the address with an HTTP PUT within ten minutes, for
-        example: curl -sS -T screenshot.png '<address>'. The answer is JSON whose
-        "reference" is a line like ![name](https://.../api/attachments/<hash>). Write
-        that line, exactly and on a line of its own, in your reply or in the body of a
-        notify, and the user sees the picture there. The line keeps working after the
-        address is used, so it can go in both. JPEG, PNG, WebP and GIF are accepted,
-        up to 20 MB.
+        example: curl -sS -T song.mp3 '<address>'. The answer is JSON whose "reference"
+        is the line to write: ![name](https://.../api/attachments/<hash>) for a
+        picture, [name](https://.../api/attachments/<hash>) for a file. Write it
+        exactly and on a line of its own, in your reply or in the body of a notify, and
+        the user sees the picture, or a card to play, open or download the file. The
+        line keeps working after the address is used, so it can go in both. It also
+        stays in your user's gallery. Pictures (JPEG, PNG, WebP, GIF) up to 20 MB;
+        PDFs, sound, video and plain text up to 100 MB.
 
-        name: what the picture is called, shown as its caption.
+        name: what it is called: a picture's caption, or a file's name with its
+            ending, such as "Night Drive.mp3".
         """
         try:
             raw = open_ticket(_caller(ctx), name)
@@ -390,6 +406,8 @@ def build_server():
         path = attachments.path_for(_caller(ctx).user_id, match.group(0)) if match else None
         if path is None or not path.is_file():
             raise ToolError("No such picture for this weft's user.")
+        if path.suffix != ".webp":
+            raise ToolError("That is a file, not a picture, so there is nothing to look at.")
         return Image(data=path.read_bytes(), format="webp")
 
     @server.tool(structured_output=False)
@@ -402,8 +420,8 @@ def build_server():
         every step: a weft can send only so many an hour.
 
         title: one line saying what this is about, up to 120 characters.
-        body: the report, as plain text, up to 4000 characters. A picture's reference
-            line from upload, on a line of its own, shows as the picture.
+        body: the report, as plain text, up to 4000 characters. A reference line from
+            upload, on a line of its own, shows as the picture or file.
         """
         caller = _caller(ctx)
         async with db.get_sessionmaker()() as session:

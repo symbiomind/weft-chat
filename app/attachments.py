@@ -10,17 +10,18 @@ dropped, WebP). The browser never posts a picture's bytes inside a chat request.
 **Kept per user, by path.** A file lives at ``data/attachments/<user id>/<sha256>.webp``.
 The directory is the ownership check: a request can only ever name a hash, and the path
 is built from the caller's own id, so one user cannot read another's picture even by
-knowing its hash, and no table is needed to say who uploaded what. The same picture sent
-twice by one user is one file.
+knowing its hash. The gallery's rows describe a file; the folder, not a row, says whose
+it is. The same picture sent twice by one user is one file.
 
-**Kept until removed.** Unlike a background, nothing in Weft's database refers to an
-attachment. The references live in the window's local scrollback and in a session store,
-which the server cannot see, so there is no safe sweep. Retention settings (global or
-per pick) are future work; until then a picture stays on disk once uploaded.
+**Files too, and kept until removed.** Anything else the gallery takes (a PDF, a
+song) sits beside the pictures as ``<sha256>.bin``, its bytes exactly as sent. The
+references live in the window's local scrollback and in a session store, which the
+server cannot see, so there is no safe sweep: a file stays until its user deletes it.
+What each one is, and which wefts have been shown it, is in app/gallery.py.
 
 **Sent once.** Only the newest user message's pictures go upstream as pictures. Earlier
-ones are sent as their text marker (``[image: photo.jpg]``), which is how ind-bridge
-stores them too: a being looks at a picture once and remembers what it saw, and later
+ones are sent as their text marker (``[image: photo.jpg]``), and a file only ever as its
+marker (``[file: datasheet.pdf]``). That is how ind-bridge stores them too: a being looks at a picture once and remembers what it saw, and later
 turns do not pay the image tokens again.
 """
 
@@ -28,6 +29,7 @@ import base64
 import os
 import re
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -62,11 +64,34 @@ def user_folder(user_id: str) -> Path:
     return directory() / user_id
 
 
+def picture_path(user_id: str, digest: str) -> Path:
+    return user_folder(user_id) / f"{digest}.webp"
+
+
+def file_path(user_id: str, digest: str) -> Path:
+    """Where a file that is not a picture is kept: its bytes as sent (app/gallery.py)."""
+    return user_folder(user_id) / f"{digest}.bin"
+
+
 def path_for(user_id: str, digest: str) -> Path | None:
-    """The file for one of this user's hashes, or None if the hash is not one."""
+    """The stored file for one of this user's hashes, picture or not, or None if the
+    hash is not one. A hash with nothing stored gives the picture's path, which does
+    not exist."""
     if not _HASH.match(digest):
         return None
-    return user_folder(user_id) / f"{digest}.webp"
+    picture = picture_path(user_id, digest)
+    if picture.is_file():
+        return picture
+    other = file_path(user_id, digest)
+    return other if other.is_file() else picture
+
+
+def kind_of(user_id: str, digest: str) -> str | None:
+    """``picture``, ``file``, or None when this user has nothing under the hash."""
+    path = path_for(user_id, digest)
+    if path is None or not path.is_file():
+        return None
+    return "picture" if path.suffix == ".webp" else "file"
 
 
 def encode(data: bytes) -> bytes:
@@ -79,18 +104,18 @@ def store(user_id: str, encoded: bytes) -> str:
 
 
 def data_uri(user_id: str, digest: str) -> str | None:
-    """The stored picture as a ``data:`` URI, or None if this user has no such file."""
+    """The stored picture as a ``data:`` URI, or None if this user has no such picture."""
     path = path_for(user_id, digest)
-    if path is None or not path.is_file():
+    if path is None or not path.is_file() or path.suffix != ".webp":
         return None
     return "data:image/webp;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
 
-def clean_name(name: str | None) -> str:
+def clean_name(name: str | None, default: str = "picture") -> str:
     """A name fit for a text marker: printable, one line, bounded. Never empty."""
     text = "".join(ch for ch in (name or "") if ch.isprintable()).strip()
     text = text.replace("[", "(").replace("]", ")")
-    return text[:MAX_NAME_CHARS] or "picture"
+    return text[:MAX_NAME_CHARS] or default
 
 
 #: In front of a message the user spoke rather than typed, when they want
@@ -101,28 +126,55 @@ def clean_name(name: str | None) -> str:
 SPOKEN = "[spoken]"
 
 
-def marker(names: list[str], spoken: bool = False) -> str:
-    """The words that stand in for pictures, and for having been spoken, wherever only
-    text can go. Pictures first."""
-    words = [f"[image: {clean_name(n)}]" for n in names]
+def marker(attached: list[dict], spoken: bool = False) -> str:
+    """The words that stand in for pictures and files, and for having been spoken,
+    wherever only text can go. Attachments first, in order.
+
+    Each attachment is a dict with its ``name`` and, for anything but a picture,
+    ``kind: "file"``. A picture is ``[image: name]``, a file ``[file: name]``: a weft
+    is shown the picture once, but a file only ever reaches it as its name, and its
+    agent fetches it from the gallery if it needs the contents.
+    """
+    words = [
+        f"[file: {clean_name(a.get('name'), 'file')}]" if a.get("kind") == "file"
+        else f"[image: {clean_name(a.get('name'))}]"
+        for a in attached
+    ]
     if spoken:
         words.append(SPOKEN)
     return " ".join(words)
 
 
-def with_marker(text: str, names: list[str], spoken: bool = False) -> str:
+def with_marker(text: str, attached: list[dict], spoken: bool = False) -> str:
     """A message's text with its marker in front of it."""
-    prefix = marker(names, spoken)
+    prefix = marker(attached, spoken)
     if not prefix:
         return text
     return f"{prefix} {text}".strip()
 
 
 class Attachment(BaseModel):
-    """A picture as a message refers to it: the stored hash, and the name it was given."""
+    """A picture or file as a message refers to it: the stored hash, the name it was
+    given, and which of the two it is. The server decides ``kind`` from what it holds
+    under the hash (see ``describe``); a client's claim is only kept for reading back."""
 
     hash: str = Field(pattern=HASH_PATTERN)
     name: str = Field(default="picture", max_length=512)
+    kind: Literal["picture", "file"] = "picture"
+
+
+def describe(user_id: str, attached: list[Attachment]) -> list[dict]:
+    """A message's attachments as they are kept and forwarded: the name cleaned, and
+    the kind taken from what this user's folder holds, not from the request. A hash
+    the user has nothing under keeps the kind it was sent with."""
+    out = []
+    for a in attached:
+        kind = kind_of(user_id, a.hash) or a.kind
+        item = {"hash": a.hash, "name": clean_name(a.name, "file" if kind == "file" else "picture")}
+        if kind == "file":
+            item["kind"] = "file"
+        out.append(item)
+    return out
 
 
 def from_body(body: object) -> list[dict]:
@@ -136,19 +188,23 @@ def from_body(body: object) -> list[dict]:
     out = []
     for item in raw[:MAX_PER_MESSAGE]:
         if isinstance(item, dict) and isinstance(item.get("hash"), str) and _HASH.match(item["hash"]):
-            out.append({"hash": item["hash"], "name": clean_name(item.get("name"))})
+            if item.get("kind") == "file":
+                out.append({"hash": item["hash"], "name": clean_name(item.get("name"), "file"),
+                            "kind": "file"})
+            else:
+                out.append({"hash": item["hash"], "name": clean_name(item.get("name"))})
     return out
 
 
-def strip_marker(text: str, names: list[str], spoken: bool = False) -> str:
+def strip_marker(text: str, attached: list[dict], spoken: bool = False) -> str:
     """Undo :func:`with_marker`, for a message read back from a session store.
 
     A spoken message may have been stored without its marker (the user had telling the
     weft turned off), so each half is taken off only if it is there.
     """
-    pictures = marker(names)
-    if pictures and text.startswith(pictures):
-        text = text[len(pictures):].lstrip()
+    things = marker(attached)
+    if things and text.startswith(things):
+        text = text[len(things):].lstrip()
     if spoken and text.startswith(SPOKEN):
         text = text[len(SPOKEN):].lstrip()
     return text

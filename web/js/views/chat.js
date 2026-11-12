@@ -61,6 +61,7 @@ import { watchHealth } from "../health.js";
 import { createDonut } from "../canvas/donut.js";
 import * as panels from "../panels.js";
 import * as providersApi from "../providers.js";
+import { fileCards, releaseFiles, remember } from "../files.js";
 import { fillLinked } from "../links.js";
 import { picturesIn } from "../references.js";
 import { streamChat } from "../relay.js";
@@ -297,7 +298,12 @@ export function renderChat(root) {
   // Pictures waiting to go with the next message. Each one uploads the
   // moment it is chosen; the bubble later shows it from the same local URL.
   const tray = createTray({
-    upload: (file) => providersApi.uploadAttachment(file),
+    upload: async (file) => {
+      const about = await providersApi.uploadAttachment(file);
+      // Its card in the bubble then draws from this answer, without asking again.
+      if (about.kind === "file") remember(about);
+      return about;
+    },
     onUploaded: (hash, url) => {
       // The same picture twice is one hash; the first local URL is the one kept.
       if (attachmentPictures.has(hash)) return false;
@@ -1712,7 +1718,10 @@ export function renderChat(root) {
       bubble.title = "spoken";
       bubble.append(el("span", { class: "spoken-mark", "aria-hidden": "true" }, [icon("mic")]));
     }
-    if (attached?.length) bubble.prepend(picturesFor(attached));
+    const pictures = (attached || []).filter((a) => a.kind !== "file");
+    const files = (attached || []).filter((a) => a.kind === "file");
+    if (files.length) bubble.prepend(fileCards(files, { onError: notice }));
+    if (pictures.length) bubble.prepend(picturesFor(pictures));
     if (role === "ai") setBubbleText(bubble, text);
     else fillLinked(span, text);
     // Who said it, for a screen reader moving through the log; the eye has the colours
@@ -1725,25 +1734,39 @@ export function renderChat(root) {
   }
 
   /**
-   * A weft's words, with any pictures they reference shown under them.
+   * A weft's words, with any pictures and files they reference shown under them.
    *
-   * Called on every delta, so the row of pictures is only rebuilt when the set of
-   * references changes, not each time a token lands.
+   * Called on every delta, so the rows of pictures and files are only rebuilt when
+   * their set of references changes, not each time a token lands.
    */
   function setBubbleText(bubble, text, { streaming = false } = {}) {
     const shown = picturesIn(text, { streaming });
     const span = bubble.querySelector(".bubble-text");
     fillLinked(span, shown.text, { streaming });
 
-    const row = bubble.querySelector(".bubble-shown");
-    if (sameAttachments(bubble.shown, shown.pictures)) return;
-    bubble.shown = shown.pictures;
-    row?.remove();
-    if (shown.pictures.length) {
-      const pics = picturesFor(shown.pictures);
-      pics.classList.add("bubble-shown");
-      span.after(pics);
+    if (!sameAttachments(bubble.shown, shown.pictures)) {
+      bubble.shown = shown.pictures;
+      bubble.querySelector(".bubble-shown")?.remove();
+      if (shown.pictures.length) {
+        const pics = picturesFor(shown.pictures);
+        pics.classList.add("bubble-shown");
+        span.after(pics);
+      }
     }
+    if (!sameAttachments(bubble.handed, shown.files)) {
+      bubble.handed = shown.files;
+      bubble.querySelector(".bubble-handed")?.remove();
+      if (shown.files.length) {
+        const cards = fileCards(shown.files, { onError: notice });
+        cards.classList.add("bubble-handed");
+        (bubble.querySelector(".bubble-shown") || span).after(cards);
+      }
+    }
+  }
+
+  /** A play or download that failed, said where the user is looking. */
+  function notice(message) {
+    addBubble("ai", message);
   }
 
   /**
@@ -2348,6 +2371,7 @@ export function renderChat(root) {
     window.removeEventListener("weft:stt-changed", loadStt);
     tray.teardown();
     releaseAttachmentPictures();
+    releaseFiles();
     document.removeEventListener("keydown", onLightboxKey);
     document.removeEventListener("keydown", onDrawerKey);
     barHeights.disconnect();

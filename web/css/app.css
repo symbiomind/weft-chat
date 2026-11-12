@@ -163,6 +163,16 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 }
 .tray-item.pending img{opacity:.5; animation:ledpulse 1s ease-in-out infinite}
 .tray-item.failed img{border-color:#c62828; opacity:.6}
+/* a file in the tray: its icon and name on a tile the size of a thumbnail */
+.tray-file{
+  width:100%; height:100%; box-sizing:border-box; padding:6px 4px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  border-radius:10px; border:2px solid var(--inedge); background:var(--panel); color:var(--text);
+  box-shadow:0 4px 14px rgba(0,0,0,.3); font-size:10px; line-height:1.15; text-align:center;
+}
+.tray-file span{max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.tray-item.pending .tray-file{opacity:.5; animation:ledpulse 1s ease-in-out infinite}
+.tray-item.failed .tray-file{border-color:#c62828; opacity:.6}
 .tray-remove{
   position:absolute; top:-6px; right:-6px;
   width:22px; height:22px; padding:0; border-radius:50%;
@@ -182,6 +192,34 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 }
 .bubble-pic.gone{cursor:default}
 .bubble-pic.gone img{width:96px; height:72px}
+
+/* ---- a file on a message (js/files.js): a card in the bubble's own colours, with a
+   tint to lift it off the bubble, an icon for its kind, and play and download */
+.bubble-files{display:flex; flex-direction:column; gap:6px; margin-bottom:6px}
+.bubble-files:last-child{margin-bottom:0}
+.bubble-files.bubble-handed{margin:6px 0 0}
+.file-card{
+  min-width:min(240px, 100%); max-width:340px; box-sizing:border-box; padding:8px 10px;
+  border-radius:12px; background:color-mix(in srgb, currentColor 9%, transparent);
+  border:1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+.file-row{display:flex; align-items:center; gap:10px}
+.file-icon .ic{width:22px; height:22px; opacity:.85}
+.file-words{flex:1; min-width:0; display:flex; flex-direction:column}
+.file-name{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.file-detail{font-size:.8em; opacity:.7}
+.file-actions{display:flex; gap:4px}
+.file-action{
+  width:34px; height:34px; padding:0; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:color-mix(in srgb, currentColor 12%, transparent); color:inherit; border:0; cursor:pointer;
+}
+.file-action:hover, .file-action:focus-visible{background:color-mix(in srgb, currentColor 22%, transparent)}
+.file-action .ic{width:16px; height:16px}
+.file-card.pending .file-row, .file-card.busy .file-row{opacity:.6; animation:ledpulse 1s ease-in-out infinite}
+.file-card.gone{opacity:.6}
+.file-player{display:block; width:100%; margin-top:8px}
+video.file-player{max-height:50dvh; border-radius:8px; background:#000}
 #lightbox{
   position:fixed; inset:0; z-index:8;
   display:flex; align-items:center; justify-content:center;
@@ -766,6 +804,7 @@ button{background:var(--twilight); color:#fff; border:0; border-radius:20px; pad
 .panel .rows > .row.note{align-items:flex-start; border-left:3px solid var(--weft-a)}
 .note-body{margin:8px 0 0; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.5}
 .note .bubble-pics{margin:8px 0 0}
+.note .bubble-files{margin:8px 0 0}
 /* who it is from: the pea, the name (to that weft's chat), when */
 .note-from{display:flex; align-items:center; gap:8px; margin-bottom:4px; min-width:0}
 .note-from .led{width:10px; height:10px; flex:0 0 auto; border-radius:50%;

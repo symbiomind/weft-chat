@@ -457,3 +457,28 @@ def test_weft_ears_arrive_without_rebuilding_wefts(tmp_path):
             == [("own", None)]
     finally:
         db.close()
+
+
+def test_the_gallery_arrives_empty_and_touches_nothing_else(tmp_path):
+    """Two new tables. Pictures already on disk get their rows later, when asked about,
+    so the migration reads no file and changes no row."""
+    path = tmp_path / "weft.db"
+    cfg = alembic_config(path)
+    command.upgrade(cfg, "a8d3f1c6e2b9")
+    seed(path)
+    command.upgrade(cfg, "d8f3a6c1e2b4")
+
+    command.upgrade(cfg, "e9a4b7c2d5f1")
+    assert {"gallery_items", "gallery_shares"} <= tables(path)
+    assert counts(path) == (1, 1, 1)
+
+    db = sqlite3.connect(path)
+    try:
+        assert db.execute("SELECT count(*) FROM gallery_items").fetchone() == (0,)
+        assert db.execute("PRAGMA foreign_key_check").fetchall() == []
+    finally:
+        db.close()
+
+    command.downgrade(cfg, "d8f3a6c1e2b4")
+    assert not {"gallery_items", "gallery_shares"} & tables(path)
+    assert counts(path) == (1, 1, 1)

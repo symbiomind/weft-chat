@@ -15,16 +15,15 @@ Two routers, because they serve two different callers:
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
-from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, backgrounds, db, deps, door
+from app import db, deps, door, gallery
 from app.models import User, Weft, WeftKey
 from app.refresh import hash_token
-from app.routes.providers import _read_capped
+from app.routes.attachments import receive
 from app.routes.wefts import owned_weft
 
 router = APIRouter(
@@ -67,8 +66,13 @@ class InviteOut(BaseModel):
 
 class UploadOut(BaseModel):
     hash: str
-    #: The line to write in a reply to show the picture.
+    #: The line to write in a reply to show the picture or file.
     reference: str
+    #: ``picture`` or ``file``.
+    kind: str
+    #: What it is, from its bytes.
+    type: str
+    size: int
 
 
 async def _key_for(session: AsyncSession, weft: Weft) -> WeftKey | None:
@@ -208,12 +212,13 @@ async def upload(
     request: Request,
     ticket: str = Path(pattern=r"^[A-Za-z0-9_-]{20,64}$"),
 ) -> UploadOut:
-    """Store a picture sent to a one-time address from the ``upload`` tool.
+    """Keep a picture or file sent to a one-time address from the ``upload`` tool.
 
-    The address is used up by trying it, whether the picture turns out to be one or
-    not: a second try needs a second address. The content type is not consulted.
-    ``curl -T`` sends none, and every byte is decoded and re-encoded anyway, which is
-    what refuses a file that is not a picture (app/backgrounds.py).
+    The address is used up by trying it, whether the upload turns out to be one Weft
+    keeps or not: a second try needs a second address. The content type is not
+    consulted. ``curl -T`` sends none, and the bytes decide: a picture is re-encoded,
+    and any other file is kept only if it is a kind the gallery takes (app/gallery.py).
+    It lands in the gallery as the weft's, shared with that weft.
     """
     found = door.take_ticket(ticket)
     if found is None:
@@ -222,12 +227,15 @@ async def upload(
             detail="That upload address is used, lapsed or unknown. Ask upload for another.",
         )
 
-    data = await _read_capped(request, backgrounds.MAX_UPLOAD_BYTES)
-    try:
-        encoded = await run_in_threadpool(attachments.encode, data)
-    except backgrounds.NotAPicture as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
-        ) from exc
-    digest = await run_in_threadpool(attachments.store, found.user_id, encoded)
-    return UploadOut(hash=digest, reference=door.reference(digest, found.name))
+    received = await receive(request, found.user_id, found.name)
+    async with db.get_sessionmaker()() as session:
+        item = await gallery.record(session, found.user_id, received, found.name,
+                                    source="weft", weft_id=found.weft_id)
+        described = gallery.describe(item)
+    return UploadOut(
+        hash=described["hash"],
+        reference=door.reference(described["hash"], described["name"], described["kind"]),
+        kind=described["kind"],
+        type=described["type"],
+        size=described["size"],
+    )

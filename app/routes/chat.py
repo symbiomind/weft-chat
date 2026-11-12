@@ -71,7 +71,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import attachments, db, deps, eliza, upstream, vault
+from app import attachments, db, deps, eliza, gallery, upstream, vault
 from app.attachments import MAX_PER_MESSAGE, Attachment
 from app.models import User, utcnow
 from app.routes.providers import owned_provider
@@ -115,9 +115,9 @@ class Message(BaseModel):
     #: would be forwarded verbatim to somebody else's parser.
     role: Literal["system", "user", "assistant"]
     content: str = Field(max_length=MAX_MESSAGE_CHARS)
-    #: Pictures on this message, by the hash PUT /api/attachments returned
-    #:. Only the newest user message's go upstream as pictures; see
-    #: wire_messages.
+    #: Pictures and files on this message, by the hash PUT /api/attachments returned.
+    #: Only the newest user message's pictures go upstream as pictures, and a file only
+    #: ever as its name; see wire_messages.
     attachments: list[Attachment] = Field(default_factory=list, max_length=MAX_PER_MESSAGE)
     #: Spoken through push to talk rather than typed. The weft is told
     #: with a marker when the user wants it to be; see wire_messages.
@@ -128,7 +128,8 @@ async def wire_messages(messages: list[Message], user_id: str, *,
                         tell_spoken: bool = True) -> list[dict]:
     """The conversation as the provider receives it.
 
-    Every message's text gets its pictures' marker in front (``[image: photo.jpg]``),
+    Every message's text gets its pictures' and files' marker in front
+    (``[image: photo.jpg] [file: song.mp3]``),
     so a reader that only keeps text, like ind-bridge's session storage, still knows a
     picture was there. A message with pictures and no words would otherwise be no text
     at all, and the bridge does not store a turn with no text.
@@ -137,7 +138,8 @@ async def wire_messages(messages: list[Message], user_id: str, *,
     a list of content parts, the images first and the words after, each image a
     ``data:`` URI read from this user's own attachments. Earlier turns are their marker
     alone. A being looks at a picture once and remembers what it saw, and every later
-    turn would otherwise pay the picture's tokens again.
+    turn would otherwise pay the picture's tokens again. A file never goes as itself,
+    only as its marker: a weft's agent that wants one takes it from the gallery.
 
     A spoken message gets ``[spoken]`` after any picture markers, when ``tell_spoken``
     (the user's own setting) says the weft should know.
@@ -145,16 +147,17 @@ async def wire_messages(messages: list[Message], user_id: str, *,
     wire = []
     last = len(messages) - 1
     for index, message in enumerate(messages):
-        names = [a.name for a in message.attachments]
+        attached = attachments.describe(user_id, message.attachments)
         text = attachments.with_marker(
-            message.content, names, message.spoken and tell_spoken)
-        if index != last or message.role != "user" or not message.attachments:
+            message.content, attached, message.spoken and tell_spoken)
+        pictures = [a for a in attached if a.get("kind") != "file"]
+        if index != last or message.role != "user" or not pictures:
             wire.append({"role": message.role, "content": text})
             continue
 
         parts = []
-        for attachment in message.attachments:
-            uri = await run_in_threadpool(attachments.data_uri, user_id, attachment.hash)
+        for attachment in pictures:
+            uri = await run_in_threadpool(attachments.data_uri, user_id, attachment["hash"])
             if uri is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -226,19 +229,19 @@ async def chat(
     resolved = await resolve_store(session, user, weft)
     store = resolved[0] if resolved else None
     last = body.messages[-1]
-    pictures = [
-        {"hash": a.hash, "name": attachments.clean_name(a.name)} for a in last.attachments
-    ] if last.role == "user" else []
+    attached = attachments.describe(user.id, last.attachments) if last.role == "user" else []
     spoken = last.role == "user" and last.spoken
     user_text = (
-        attachments.with_marker(
-            last.content, [p["name"] for p in pictures], spoken and user.stt_tell_weft)
+        attachments.with_marker(last.content, attached, spoken and user.stt_tell_weft)
         if last.role == "user" else None
     )
-    # The store keeps the pictures as references, never the pictures themselves, and
+    # Put in this weft's chat, so from now on its agent may find them in the gallery.
+    if attached:
+        await gallery.share(session, user.id, [a["hash"] for a in attached], weft.id)
+    # The store keeps the pictures and files as references, never their bytes, and
     # remembers a spoken message as spoken even when the weft was not told.
     user_body = {
-        **({"attachments": pictures} if pictures else {}),
+        **({"attachments": attached} if attached else {}),
         **({"spoken": True} if spoken else {}),
     } or None
     sent_at = utcnow().isoformat()

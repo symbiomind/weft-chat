@@ -71,10 +71,12 @@ async def test_what_is_not_a_picture_is_refused(csrf_client, session):
 
     svg = await upload(csrf_client, b"<svg xmlns='http://www.w3.org/2000/svg'/>", "image/svg+xml")
     assert svg.status_code == 415
-    text = await upload(csrf_client, b"hello", "text/plain")
-    assert text.status_code == 415
     junk = await upload(csrf_client, b"definitely not a png", "image/png")
     assert junk.status_code == 422
+    page = await upload(csrf_client, b"<!DOCTYPE html><script>alert(1)</script>", "text/html")
+    assert page.status_code == 422
+    program = await upload(csrf_client, b"MZ\x90\x00\x03\x00\x00\x00", "application/octet-stream")
+    assert program.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -207,7 +209,8 @@ async def test_the_store_keeps_references_and_gives_them_back(
     )).json()
     assert thread["messages"][0] == {
         "role": "user", "content": "what's this?",
-        "attachments": [{"hash": digest, "name": "cat.png"}], "spoken": False, "turn": 1,
+        "attachments": [{"hash": digest, "name": "cat.png", "kind": "picture"}],
+        "spoken": False, "turn": 1,
     }
     assert thread["messages"][1]["attachments"] == []
 

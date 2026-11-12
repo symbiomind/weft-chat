@@ -338,29 +338,48 @@ The window covers the stage with the picture and crops the overflow evenly from 
 sides: a portrait screen keeps the top and bottom of a square picture, a landscape one
 keeps the sides.
 
-### Pictures on a message
+### Pictures and files on a message
 
-A message can carry pictures. Upload each one first, then name it by
-hash in the chat request.
+A message can carry pictures and files. Upload each one first, then name it by
+hash in the chat request. Everything uploaded, by the user or by a weft's agent through
+the door, is kept in the user's gallery.
 
-- **Uploading:** `PUT /api/attachments` with the image itself as the body and an
-  `image/*` `Content-Type`. The same formats, limits and status codes as a background
-  picture, and the same re-encode, except the long edge is 2048 px. Returns `{hash}`.
-- **Fetching:** `GET /api/attachments/{hash}` returns `image/webp`, cacheable privately
-  forever. Pictures are kept per user: any hash the caller did not upload is a **404**.
+- **Uploading:** `PUT /api/attachments?name=<file name>` with the file itself as the
+  body. What is kept is decided from the bytes:
+  - A **picture** (JPEG, PNG, WebP, GIF, up to 20 MB) gets the same re-encode as a
+    background picture, except the long edge is 2048 px, and is stored as WebP.
+  - Any other **file** is kept exactly as sent, up to 100 MB, if it is a PDF, sound
+    (MP3, AAC, M4A, Ogg, FLAC, WAV), video (MP4, MOV, WebM) or plain text (including
+    Markdown, CSV and JSON). Markup (HTML, SVG, XML) and programs are refused.
+
+  A body sent as `image/*` must turn out to be a picture, and `image/svg+xml` is a
+  **415**. Too large is a **413**; anything else not kept is a **422**. Returns
+  `{hash, kind, name, type, size}`, where `kind` is `picture` or `file` and `type` is
+  what the bytes were found to be (`image/webp` for every picture).
+- **Describing:** `GET /api/attachments/{hash}/about` returns the same shape without the
+  bytes, which is what a window needs to draw a file's card.
+- **Fetching:** `GET /api/attachments/{hash}` returns a picture as `image/webp`, and a
+  file with its own type as an `attachment` download under its name. Both are
+  cacheable privately forever. Everything is kept per user: any hash the caller did not
+  upload is a **404**.
 - **Sending:** a message in `POST /api/chat` may carry
   `attachments: [{hash, name}]`, at most 6. Only the **last** message's pictures go to
   the provider as pictures, as OpenAI `image_url` content parts (WebP `data:` URIs,
-  before the text). Every message's text, the last one included, starts with a marker
-  such as `[image: cat.png]`, so earlier pictures reach the provider as their marker
-  alone, and a message with pictures and no words still has text. A hash the caller
-  does not own is a **422**, and nothing is sent upstream.
+  before the text). A file never goes as itself. Every message's text, the last one
+  included, starts with a marker such as `[image: cat.png]` or `[file: song.mp3]`, so
+  earlier pictures and every file reach the provider as their marker alone, and a
+  message with attachments and no words still has text. The server decides which is a
+  picture and which a file from what it holds, whatever the request says. A picture hash
+  the caller does not own is a **422**, and nothing is sent upstream.
+- **Who is shown what:** sending a message shares its attachments with that weft. What a
+  weft's agent will be able to find in the gallery is what was shared with it: what it
+  uploaded itself, and what its user put in its chat.
 - **Session stores:** the user's event is written with the marked text and
-  `body: {attachments: [{hash, name}]}`, never the picture itself. `/api/session/thread`
-  gives each message back with its `attachments` (empty for most) and its text without
-  the marker.
-- **Retention:** uploaded pictures are not deleted yet. Cleanup settings are future
-  work.
+  `body: {attachments: [{hash, name}]}`, a file with `"kind": "file"` added, never the
+  bytes themselves. `/api/session/thread` gives each message back with its `attachments`
+  (empty for most, each with its `kind`) and its text without the marker.
+- **Retention:** nothing in the gallery expires. Deleting is the user's, and comes with
+  the gallery page.
 
 ### Push to talk
 
@@ -394,7 +413,7 @@ is dismissed, and dismissing deletes it: there is no separate read state.
   on focus.
 - **Listing:** `GET /api/notifications` returns every weft's notifications, newest
   first, as `[{id, weft_id, title, body, created_at}]`. Add `?weft=<id>` for one weft's
-  only. `body` is plain text and may hold a picture reference, as a reply can. A weft
+  only. `body` is plain text and may hold a picture or file reference, as a reply can. A weft
   that is not yours is a **404**.
 - **Dismissing:** `DELETE /api/notifications/{id}` dismisses one (**204**).
   `POST /api/notifications/dismiss` dismisses them all and returns `{dismissed: n}`.

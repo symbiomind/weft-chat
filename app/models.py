@@ -30,6 +30,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     JSON,
@@ -816,6 +817,58 @@ class PushSubscription(Base):
 def weft_name_key(name: str) -> str:
     """A weft's name as compared: runs of whitespace made one space, case folded."""
     return " ".join(name.split()).casefold()
+
+
+class GalleryItem(Base):
+    """A picture or file in a user's gallery: what it is, and who brought it.
+
+    The bytes are on disk under the user's folder (app/attachments.py), named by their
+    hash; this row describes them. A picture from before the gallery has no row until
+    something asks about it, and then gets one with no ``source`` (app/gallery.py).
+    """
+
+    __tablename__ = "gallery_items"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True,
+    )
+    hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    #: The name it came with: a file's own name, or the caption an agent gave it.
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: What it is, decided from its bytes, never from what the sender said.
+    mime: Mapped[str] = mapped_column(String(100), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+    #: ``user`` or ``weft``, or null for a picture from before the gallery.
+    source: Mapped[str | None] = mapped_column(String(8))
+    #: The weft whose agent brought it. SET NULL: deleting the weft leaves the file.
+    weft_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("wefts.id", ondelete="SET NULL"),
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class GalleryShare(Base):
+    """A weft that has been shown a gallery item: its agent brought it, or its user put
+    it in that weft's chat. What a weft's agent can find in the gallery is exactly
+    these rows."""
+
+    __tablename__ = "gallery_shares"
+
+    user_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    #: CASCADE: a deleted weft forgets what it was shown, and the files stay.
+    weft_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("wefts.id", ondelete="CASCADE"), primary_key=True,
+    )
+    shared_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["user_id", "hash"], ["gallery_items.user_id", "gallery_items.hash"],
+            ondelete="CASCADE",
+        ),
+        Index("ix_gallery_shares_weft_id", "weft_id"),
+    )
 
 
 class TipMark(Base):

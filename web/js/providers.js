@@ -266,21 +266,29 @@ export function sessionHead(weftId) {
 }
 
 /**
- * Upload one picture for a message that is about to be sent. Resolves
- * to `{hash}`: what the chat request names it by. As with a background, the hash is of
- * what the server STORED, after re-encoding, not of the file that was sent.
+ * Upload one picture or file for a message that is about to be sent. Resolves to
+ * `{hash, kind, name, type, size}`: the hash is what the chat request names it by, and
+ * `kind` says whether it went as a picture or a file. For a picture, as with a
+ * background, the hash is of what the server STORED, after re-encoding, not of the
+ * file that was sent.
  */
 export function uploadAttachment(file) {
-  return apiFetch("/api/attachments", {
+  const name = new URLSearchParams({ name: file.name || "" });
+  return apiFetch(`/api/attachments?${name}`, {
     method: "PUT",
     headers: { "Content-Type": file.type || "application/octet-stream" },
     body: file,
   });
 }
 
-/** One of this user's attached pictures, as a Blob, for a bubble to show. */
+/** One of this user's pictures or files, as a Blob, for a bubble to show or save. */
 export function attachmentBlob(hash) {
   return apiBlob(`/api/attachments/${encodeURIComponent(hash)}`);
+}
+
+/** What one of this user's files is, `{hash, kind, name, type, size}`, without it. */
+export function attachmentAbout(hash) {
+  return apiFetch(`/api/attachments/${encodeURIComponent(hash)}/about`);
 }
 
 /**

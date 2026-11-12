@@ -1,10 +1,10 @@
-/* Weft — the attachment tray: pictures waiting to go with the next message.
+/* Weft — the attachment tray: pictures and files waiting to go with the next message.
  *
  * The 📎 petal opens the device's own picker (on a phone, that already offers the
  * camera, the photo library and files; `capture` is deliberately NOT set, because it
- * would force the camera). Each chosen picture uploads straight away and sits in a row
- * of thumbnails above the input, with an ✕ to take it back out, until send takes the
- * lot.
+ * would force the camera). Each chosen picture or file uploads straight away and sits
+ * in a row above the input, with an ✕ to take it back out, until send takes the lot. A
+ * picture shows as its thumbnail; a file (a PDF, a song) as its icon and name.
  *
  * Uploading on choice rather than on send means the chat request carries only hashes,
  * and a slow upload happens while the user is still typing instead of after they have
@@ -16,12 +16,26 @@
  */
 
 import { el } from "./dom.js";
+import { icon } from "./icons.js";
 
 /** Mirrors app/attachments.py MAX_PER_MESSAGE. The server refuses more. */
 export const MAX_PICTURES = 6;
 
 /**
- * @param upload   `(file) => Promise<{hash}>`, the PUT /api/attachments call.
+ * What the picker offers. Mirrors what app/gallery.py keeps; the server decides from
+ * the bytes either way, so this only spares choosing something that will be refused.
+ */
+export const ACCEPT = [
+  "image/*", "application/pdf", "audio/*", "video/*",
+  "text/plain", "text/markdown", "text/csv", "application/json",
+  ".md", ".markdown", ".csv", ".txt", ".json",
+].join(",");
+
+/** Whether a chosen file is sent as a picture: the server is told so, and holds it to it. */
+const isPicture = (file) => (file.type || "").startsWith("image/");
+
+/**
+ * @param upload   `(file) => Promise<{hash, kind}>`, the PUT /api/attachments call.
  * @param onError  `(name, message)` when a picture cannot be attached.
  * @param onUploaded `(hash, url)` once a picture is on the server; `url` is the local
  *                 blob: URL. Returning true takes it over (the callee now revokes it);
@@ -31,14 +45,14 @@ export const MAX_PICTURES = 6;
 export function createTray({ upload, onError, onUploaded, onChange } = {}) {
   const input = el("input", {
     type: "file",
-    accept: "image/*",
+    accept: ACCEPT,
     multiple: "",
     hidden: "",
   });
-  const element = el("div", { id: "tray", role: "list", "aria-label": "pictures to send" });
+  const element = el("div", { id: "tray", role: "list", "aria-label": "attachments to send" });
 
-  /** @type {{name: string, url: string, hash: string|null, failed: boolean,
-   *          handed: boolean, node: HTMLElement}[]} */
+  /** @type {{name: string, url: string|null, hash: string|null, kind: string,
+   *          failed: boolean, handed: boolean, node: HTMLElement}[]} */
   let items = [];
 
   function changed() {
@@ -52,17 +66,20 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
     items = items.filter((i) => i !== item);
     item.node.remove();
     // Once handed over, the URL belongs to whoever took it.
-    if (!item.handed) URL.revokeObjectURL(item.url);
+    if (item.url && !item.handed) URL.revokeObjectURL(item.url);
     changed();
   }
 
   async function add(file) {
-    const name = file.name || "picture";
-    const url = URL.createObjectURL(file);
-    const node = el("div", { class: "tray-item pending", role: "listitem", title: name }, [
-      el("img", { src: url, alt: name }),
-    ]);
-    const item = { name, url, hash: null, failed: false, handed: false, node };
+    const picture = isPicture(file);
+    const name = file.name || (picture ? "picture" : "file");
+    const url = picture ? URL.createObjectURL(file) : null;
+    const face = picture
+      ? el("img", { src: url, alt: name })
+      : el("span", { class: "tray-file" }, [icon("file"), el("span", { text: name })]);
+    const node = el("div", { class: "tray-item pending", role: "listitem", title: name }, [face]);
+    const item = { name, url, hash: null, kind: picture ? "picture" : "file",
+                   failed: false, handed: false, node };
     node.append(el("button", {
       type: "button",
       class: "tray-remove",
@@ -75,11 +92,12 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
     changed();
 
     try {
-      const { hash } = await upload(file);
+      const { hash, kind } = await upload(file);
       // Removed while it was uploading: nothing to show it in any more.
       if (!items.includes(item)) return;
       item.hash = hash;
-      item.handed = onUploaded?.(hash, url) === true;
+      item.kind = kind === "file" ? "file" : "picture";
+      item.handed = item.kind === "picture" && url ? onUploaded?.(hash, url) === true : false;
       node.classList.remove("pending");
     } catch (err) {
       if (!items.includes(item)) return;
@@ -100,8 +118,8 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
     input.value = "";
     if (files.length > room) {
       onError?.(
-        `${files.length - Math.max(room, 0)} picture(s)`,
-        `a message can carry ${MAX_PICTURES} pictures at most`,
+        `${files.length - Math.max(room, 0)} more`,
+        `a message can carry ${MAX_PICTURES} pictures and files at most`,
       );
     }
     for (const file of files.slice(0, Math.max(room, 0))) add(file);
@@ -116,24 +134,24 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
       input.click();
     },
 
-    /** True while a picture is still on its way to the server. */
+    /** True while a picture or file is still on its way to the server. */
     get uploading() {
       return items.some((i) => !i.hash && !i.failed);
     },
 
-    /** True when there is at least one picture ready to send. */
+    /** True when there is at least one picture or file ready to send. */
     get ready() {
       return items.some((i) => i.hash);
     },
 
     /**
      * Empty the tray and return what was in it, as the chat request refers to it.
-     * Pictures that failed to upload are dropped; their error was already shown.
+     * Anything that failed to upload is dropped; its error was already shown.
      */
     take() {
       const pictures = items
         .filter((i) => i.hash)
-        .map((i) => ({ hash: i.hash, name: i.name }));
+        .map((i) => ({ hash: i.hash, name: i.name, ...(i.kind === "file" ? { kind: "file" } : {}) }));
       for (const item of [...items]) remove(item);
       return pictures;
     },

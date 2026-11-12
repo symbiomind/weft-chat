@@ -2,11 +2,20 @@
   "components": {
     "schemas": {
       "Attachment": {
-        "description": "A picture as a message refers to it: the stored hash, and the name it was given.",
+        "description": "A picture or file as a message refers to it: the stored hash, the name it was\ngiven, and which of the two it is. The server decides ``kind`` from what it holds\nunder the hash (see ``describe``); a client's claim is only kept for reading back.",
         "properties": {
           "hash": {
             "pattern": "^[0-9a-f]{64}$",
             "title": "Hash",
+            "type": "string"
+          },
+          "kind": {
+            "default": "picture",
+            "enum": [
+              "picture",
+              "file"
+            ],
+            "title": "Kind",
             "type": "string"
           },
           "name": {
@@ -27,10 +36,30 @@
           "hash": {
             "title": "Hash",
             "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
           }
         },
         "required": [
-          "hash"
+          "hash",
+          "kind",
+          "name",
+          "type",
+          "size"
         ],
         "title": "AttachmentOut",
         "type": "object"
@@ -1513,14 +1542,29 @@
             "title": "Hash",
             "type": "string"
           },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
           "reference": {
             "title": "Reference",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "type": {
+            "title": "Type",
             "type": "string"
           }
         },
         "required": [
           "hash",
-          "reference"
+          "reference",
+          "kind",
+          "type",
+          "size"
         ],
         "title": "UploadOut",
         "type": "object"
@@ -2001,8 +2045,21 @@
   "paths": {
     "/api/attachments": {
       "put": {
-        "description": "Store one picture for a message that is about to be sent.\n\nThe body is the picture itself, as for a background: a raw body is what lets the\nsize cap bite while it streams. SVG is refused (markup that can carry script), and\nwhat is stored is never what was sent; see app/backgrounds.py.",
+        "description": "Keep one picture or file for a message that is about to be sent.\n\nThe body is the file itself: a raw body is what lets the size cap bite while it\nstreams. A picture is re-encoded and what is stored is never what was sent (see\napp/backgrounds.py); any other file is kept as sent, if its bytes say it is a\nkind the gallery takes. The content type only says what was meant: SVG is refused\noutright (markup that can carry script), and anything sent as ``image/`` must turn\nout to be a picture.",
         "operationId": "upload_api_attachments_put",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 512,
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -2013,6 +2070,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Upload",
@@ -2023,7 +2090,7 @@
     },
     "/api/attachments/{digest}": {
       "get": {
-        "description": "One of the caller's own pictures.\n\nLooked up under the caller's own directory, so a hash someone else uploaded gets the\nsame 404 as one nobody did. Cacheable forever, privately: the name is the hash of\nthe bytes.",
+        "description": "One of the caller's own pictures or files.\n\nLooked up under the caller's own directory, so a hash someone else uploaded gets the\nsame 404 as one nobody did. Cacheable forever, privately: the name is the hash of\nthe bytes. A file that is not a picture is sent as a download under its own name,\nwith the type its bytes were found to be, never one that a browser would render as\na page.",
         "operationId": "fetch_api_attachments__digest__get",
         "parameters": [
           {
@@ -2058,6 +2125,50 @@
           }
         },
         "summary": "Fetch",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/api/attachments/{digest}/about": {
+      "get": {
+        "description": "What one of the caller's own pictures or files is, without fetching it: what a\nbubble needs to draw the card for a file before anyone asks to play it.",
+        "operationId": "about_api_attachments__digest__about_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Digest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "About",
         "tags": [
           "attachments"
         ]
@@ -2438,7 +2549,7 @@
     },
     "/api/door/upload/{ticket}": {
       "put": {
-        "description": "Store a picture sent to a one-time address from the ``upload`` tool.\n\nThe address is used up by trying it, whether the picture turns out to be one or\nnot: a second try needs a second address. The content type is not consulted.\n``curl -T`` sends none, and every byte is decoded and re-encoded anyway, which is\nwhat refuses a file that is not a picture (app/backgrounds.py).",
+        "description": "Keep a picture or file sent to a one-time address from the ``upload`` tool.\n\nThe address is used up by trying it, whether the upload turns out to be one Weft\nkeeps or not: a second try needs a second address. The content type is not\nconsulted. ``curl -T`` sends none, and the bytes decide: a picture is re-encoded,\nand any other file is kept only if it is a kind the gallery takes (app/gallery.py).\nIt lands in the gallery as the weft's, shared with that weft.",
         "operationId": "upload_api_door_upload__ticket__put",
         "parameters": [
           {

@@ -201,6 +201,8 @@ export function forSpeech(segment) {
     // Markdown images, including a picture a weft shows. The bubble
     // shows the picture; nobody wants its address read aloud.
     .replace(/!\[[^\]\n]*\]\([^)\s]*\)/g, " ")
+    // A file a weft hands over: the bubble shows its card, so not even its name.
+    .replace(/\[[^\]\n]*\]\([^)\s]*\/api\/attachments\/[0-9a-f]{64}\)/g, " ")
     // A bare web address is a link in the bubble; aloud, only where it goes is worth
     // hearing, so it is read as its host. The full stop after it stays, for the voice.
     .replace(/https?:\/\/(?:www\.)?([A-Za-z0-9.-]+)(?:[^\s<>"`()]*[^\s<>"`().,;:!?'])?/g, "$1")

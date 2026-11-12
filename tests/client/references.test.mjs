@@ -20,6 +20,7 @@ describe("picturesIn", () => {
     assert.deepEqual(picturesIn(reply), {
       text: "Here it is:\n\nLooks good?",
       pictures: [{ hash: A, name: "dashboard" }],
+      files: [],
     });
   });
 
@@ -49,19 +50,20 @@ describe("picturesIn", () => {
   it("leaves every other image and link exactly as written", () => {
     for (const reply of [
       "![cat](https://example.com/cat.png)",
-      `[a link](/api/attachments/${A})`,
+      `[a link](https://example.com/api/attach/${A})`,
       "![short](/api/attachments/abc123)",
+      "[short](/api/attachments/abc123)",
       `![upper](/api/attachments/${A.toUpperCase()})`,
       `![other](/api/backgrounds/${A})`,
     ]) {
-      assert.deepEqual(picturesIn(reply), { text: reply, pictures: [] }, reply);
+      assert.deepEqual(picturesIn(reply), { text: reply, pictures: [], files: [] }, reply);
     }
   });
 
   it("does not touch a reply with no references at all", () => {
     const reply = "  Line one.\n\n\n\nLine two.  ";
 
-    assert.deepEqual(picturesIn(reply), { text: reply, pictures: [] });
+    assert.deepEqual(picturesIn(reply), { text: reply, pictures: [], files: [] });
   });
 
   it("holds back an unfinished reference while streaming, and only then", () => {
@@ -76,8 +78,42 @@ describe("picturesIn", () => {
   });
 
   it("survives empty input", () => {
-    assert.deepEqual(picturesIn(""), { text: "", pictures: [] });
-    assert.deepEqual(picturesIn(undefined), { text: "", pictures: [] });
+    assert.deepEqual(picturesIn(""), { text: "", pictures: [], files: [] });
+    assert.deepEqual(picturesIn(undefined), { text: "", pictures: [], files: [] });
+  });
+
+  it("lifts out a file, a link rather than an image, as a file", () => {
+    const reply = `Done!\n\n[Night Drive.mp3](https://weft.example/api/attachments/${B})\n\n🎶`;
+
+    assert.deepEqual(picturesIn(reply), {
+      text: "Done!\n\n🎶",
+      pictures: [],
+      files: [{ hash: B, name: "Night Drive.mp3", kind: "file" }],
+    });
+  });
+
+  it("keeps pictures and files apart in one reply", () => {
+    const reply = `![cover](/api/attachments/${A}) and [song](/api/attachments/${B})`;
+    const shown = picturesIn(reply);
+
+    assert.deepEqual(shown.pictures, [{ hash: A, name: "cover" }]);
+    assert.deepEqual(shown.files, [{ hash: B, name: "song", kind: "file" }]);
+    assert.equal(shown.text, "and");
+  });
+
+  it("holds back an unfinished file reference while streaming", () => {
+    const partial = "Here: [song.mp3](https://weft.example/api/attach";
+
+    assert.equal(picturesIn(partial, { streaming: true }).text, "Here: ");
+  });
+});
+
+describe("forSpeech and files", () => {
+  it("reads neither a file's name nor its address", () => {
+    assert.equal(
+      forSpeech(`Here it is: [song.mp3](https://weft.example/api/attachments/${A}) enjoy.`),
+      "Here it is: enjoy.",
+    );
   });
 });
 
