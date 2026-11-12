@@ -38,10 +38,10 @@ MCP_HEADERS = {"Accept": "application/json, text/event-stream"}
 
 @pytest.fixture(autouse=True)
 def fresh_tickets():
-    for table in (door._tickets, door._asked, door._invites):
+    for table in (door._tickets, door._asked, door._invites, door._downloads, door._grabbed):
         table.clear()
     yield
-    for table in (door._tickets, door._asked, door._invites):
+    for table in (door._tickets, door._asked, door._invites, door._downloads, door._grabbed):
         table.clear()
 
 
@@ -257,12 +257,12 @@ async def test_a_caller_without_the_key_cannot_even_list_the_tools(door_client, 
 
 
 @pytest.mark.asyncio
-async def test_the_key_lists_four_tools_and_is_noted_as_used(door_client, session):
+async def test_the_key_lists_six_tools_and_is_noted_as_used(door_client, session):
     weft, key = await weft_with_key(door_client, session)
 
     response = await rpc(door_client, key, "tools/list")
     names = {tool["name"] for tool in response.json()["result"]["tools"]}
-    assert names == {"upload", "view", "notify", "status"}
+    assert names == {"upload", "view", "list", "grab", "notify", "status"}
 
     shown = (await door_client.get(f"/api/wefts/{weft['id']}/door")).json()
     assert shown["last_used_at"] is not None

@@ -4,12 +4,16 @@ Weft's MCP door: an agent shows its user a picture, or hands them a file.
 A weft's agent can make a picture (a screenshot, a chart, a photo it found) or a file
 (a song, a PDF it fetched) on a machine Weft cannot see. This door is how it gets into
 Weft. The agent adds
-Weft's MCP server to its config with a key minted for one weft, and gains four tools:
+Weft's MCP server to its config with a key minted for one weft, and gains six tools:
 
 * ``upload`` hands back a one-time address. The agent sends the file there with its
   shell (``curl -T``), and the answer is the line to write in its reply, which the chat
   window shows as the picture, or as a card for a file (web/js/references.js). It
   lands in the user's gallery (app/gallery.py).
+* ``list`` names the gallery items this weft has: what its agent uploaded, and what its
+  user sent in its chat (app/gallery.py). Nothing else in the gallery is offered.
+* ``grab`` hands back a one-time address of one of those, for the agent's shell to fetch
+  (``curl -o``): ``upload`` the other way round, so the bytes never cross the model.
 * ``view`` gives a stored picture back to the agent as an image, so an agent that can
   only see pictures in tool results can still look at what it showed.
 * ``notify`` leaves the user a report to read when they next open Weft:
@@ -45,7 +49,7 @@ from datetime import datetime
 
 from sqlalchemy import select
 
-from app import attachments, config, db, notifications, push
+from app import attachments, config, db, gallery, notifications, push
 from app.models import User, Weft, WeftKey, utcnow
 from app.refresh import hash_token
 
@@ -186,13 +190,78 @@ def take_ticket(raw: str) -> Ticket | None:
 def forget(weft_ids: set[str]) -> None:
     """Close every open upload address and invite of these wefts. For when their key
     goes or is replaced: nothing handed out under the old arrangement outlives it."""
-    for table in (_tickets, _invites):
+    for table in (_tickets, _invites, _downloads):
         for digest in [d for d, t in table.items() if t.weft_id in weft_ids]:
             del table[digest]
 
 
 def upload_url(raw: str) -> str:
     return f"{config.public_origin()}/api/door/upload/{raw}"
+
+
+# ---------------------------------------------------------------------------
+# Download tickets: grab, the other way round
+# ---------------------------------------------------------------------------
+#
+# A file a weft's agent wants from the gallery comes the way a picture goes: over plain
+# HTTP from the agent's shell, never through the model, where a 20 MB song would be
+# millions of tokens. ``grab`` checks the file is one this weft may have, and hands back
+# a one-time address of it for ``curl -o``.
+
+
+@dataclass(frozen=True)
+class Download:
+    user_id: str
+    weft_id: str
+    hash: str
+    expires: float
+
+
+#: Open download addresses, by the digest of the address's secret part.
+_downloads: dict[str, Download] = {}
+
+#: Download addresses one weft may ask for in an hour.
+DOWNLOADS_PER_HOUR = 60
+
+_grabbed: dict[str, deque[float]] = {}
+
+
+def open_download(caller: Caller, digest: str) -> str:
+    """A one-time download secret for one file. Raises DoorBusy past a limit."""
+    now = time.monotonic()
+    for key in [d for d, t in _downloads.items() if t.expires <= now]:
+        del _downloads[key]
+
+    asked = _grabbed.setdefault(caller.weft_id, deque())
+    while asked and asked[0] <= now - 3600:
+        asked.popleft()
+    if len(asked) >= DOWNLOADS_PER_HOUR:
+        raise DoorBusy(f"This weft has grabbed {DOWNLOADS_PER_HOUR} files in the last hour.")
+    if sum(t.weft_id == caller.weft_id for t in _downloads.values()) >= MAX_OPEN_TICKETS:
+        raise DoorBusy(
+            f"This weft already has {MAX_OPEN_TICKETS} download addresses waiting. "
+            "Use one, or wait ten minutes for them to lapse."
+        )
+
+    raw = secrets.token_urlsafe(32)
+    _downloads[hash_token(raw)] = Download(
+        user_id=caller.user_id, weft_id=caller.weft_id, hash=digest,
+        expires=now + TICKET_SECONDS,
+    )
+    asked.append(now)
+    return raw
+
+
+def take_download(raw: str) -> Download | None:
+    """The download for a secret, used up by this call, or None."""
+    found = _downloads.pop(hash_token(raw), None)
+    if found is None or found.expires <= time.monotonic():
+        return None
+    return found
+
+
+def download_url(raw: str) -> str:
+    return f"{config.public_origin()}/api/door/download/{raw}"
 
 
 def reference(digest: str, name: str, kind: str = "picture") -> str:
@@ -310,6 +379,15 @@ so to look at a picture again later call `view` with its reference.
 If your shell cannot reach the address (some sandboxes block local network addresses),
 tell your user rather than guessing at another way in.
 
+## Files your user gives you
+
+When your user sends a picture or file in your chat, your message says so with a marker
+such as `[file: data sheet.pdf]`. Pictures you also see; a file you only get by name.
+`list` shows every file you have: the ones you uploaded and the ones sent in your chat.
+To work on one, call `grab` with its name or hash. It gives you a one-time address:
+fetch it with `curl -sS -o <file> '<address>'` within ten minutes. You can only reach
+files that were put in your own chat.
+
 ## Keeping your user posted
 
 When your user sets you a long job and leaves you to it, call `notify` to report in: a
@@ -339,8 +417,18 @@ def _caller(ctx) -> Caller:
     return ctx.request_context.request.state.weft_caller
 
 
+#: Items ``list`` names at most; ``search`` narrows the rest.
+LIST_LIMIT = 50
+
+
+def _size(size: int) -> str:
+    if size < 1024 * 1024:
+        return f"{max(1, round(size / 1024))} KB"
+    return f"{size / (1024 * 1024):.1f} MB"
+
+
 def build_server():
-    """The MCP server, with its four tools. One per app: its session manager runs
+    """The MCP server, with its six tools. One per app: its session manager runs
     once, in the app's lifespan."""
     from mcp.server.fastmcp import Context, FastMCP, Image
     from mcp.server.fastmcp.exceptions import ToolError
@@ -352,7 +440,8 @@ def build_server():
             "Weft is the window your user reads you in. Use upload to show them a "
             "picture or hand them a file (a song, a PDF): it gives you an address to "
             "send the file to with curl, and the line to write in your reply or in a "
-            "notify body. Use view to look at a "
+            "notify body. Use list to see the files you have in your user's gallery, "
+            "and grab to download one with curl. Use view to look at a "
             "picture you showed. Use notify to leave your user a report to read when "
             "they are away, such as when a long job you were left to do finishes."
         ),
@@ -397,18 +486,94 @@ def build_server():
         )
 
     @server.tool(structured_output=False)
-    def view(ctx: Context, reference: str) -> Image:
-        """Look at a picture you uploaded, as an image.
+    async def view(ctx: Context, reference: str) -> Image:
+        """Look at a picture you uploaded, or one your user sent you, as an image.
 
         reference: the line upload gave you, its address, or just its hash.
         """
+        caller = _caller(ctx)
         match = _HASH_ANYWHERE.search(reference or "")
-        path = attachments.path_for(_caller(ctx).user_id, match.group(0)) if match else None
+        item = None
+        if match:
+            async with db.get_sessionmaker()() as session:
+                item = await gallery.visible_to(
+                    session, caller.user_id, caller.weft_id, match.group(0))
+                await session.commit()
+        path = attachments.path_for(caller.user_id, item.hash) if item else None
         if path is None or not path.is_file():
-            raise ToolError("No such picture for this weft's user.")
+            raise ToolError("No such picture for this weft.")
         if path.suffix != ".webp":
             raise ToolError("That is a file, not a picture, so there is nothing to look at.")
         return Image(data=path.read_bytes(), format="webp")
+
+    @server.tool(name="list", structured_output=False)
+    async def list_files(ctx: Context, search: str = "") -> str:
+        """List the files and pictures in your user's gallery that you have: the ones
+        you uploaded, and the ones your user sent in your chat. Newest first.
+
+        Each line gives a name, what it is, its size, when it came, who brought it and
+        its hash. Pass the name or the hash to grab to fetch one.
+
+        search: only list items whose name contains this, ignoring case.
+        """
+        caller = _caller(ctx)
+        async with db.get_sessionmaker()() as session:
+            items = await gallery.shared_with(session, caller.weft_id)
+        wanted = (search or "").strip().casefold()
+        if wanted:
+            items = [i for i in items if wanted in i.name.casefold()]
+        if not items:
+            return ("Nothing matches that." if wanted else
+                    "Nothing yet. Files you upload, and ones your user sends in your chat, "
+                    "show here.")
+        lines = []
+        for item in items[:LIST_LIMIT]:
+            who = "you" if item.weft_id == caller.weft_id and item.source == "weft" else (
+                "your user" if item.source == "user" else "another weft")
+            lines.append(
+                f"- {item.name} | {item.mime} | {_size(item.size)} | "
+                f"{item.created_at:%Y-%m-%d %H:%M} UTC | from {who} | {item.hash}"
+            )
+        more = len(items) - LIST_LIMIT
+        if more > 0:
+            lines.append(f"...and {more} older. Narrow it with search.")
+        return "\n".join(lines)
+
+    @server.tool(structured_output=False)
+    async def grab(ctx: Context, file: str) -> str:
+        """Get a one-time address to download a file or picture from your user's gallery,
+        so you can work on it: send it on to other storage, transcribe it, read it.
+
+        Only files you have can be grabbed: ones you uploaded, and ones your user sent
+        in your chat (see list). Fetch it with your shell within ten minutes, for
+        example: curl -sS -o song.mp3 '<address>'. The bytes come over HTTP, never
+        through this conversation.
+
+        file: its hash, the reference line it was shown with, or its exact name.
+        """
+        caller = _caller(ctx)
+        async with db.get_sessionmaker()() as session:
+            try:
+                item = await gallery.find_for_weft(
+                    session, caller.user_id, caller.weft_id, file)
+            except gallery.Ambiguous as exc:
+                raise ToolError(str(exc)) from exc
+            await session.commit()
+        if item is None:
+            raise ToolError(
+                "No such file for this weft. list shows the ones you have; your user can "
+                "send you another in your chat."
+            )
+        try:
+            raw = open_download(caller, item.hash)
+        except DoorBusy as exc:
+            raise ToolError(str(exc)) from exc
+        address = download_url(raw)
+        return (
+            f"{item.name} ({item.mime}, {_size(item.size)})\n"
+            f"Download address (one use, ten minutes): {address}\n"
+            f"Fetch it: curl -sS -o '<file>' '{address}'"
+        )
 
     @server.tool(structured_output=False)
     async def notify(ctx: Context, title: str, body: str = "") -> str:

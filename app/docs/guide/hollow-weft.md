@@ -90,15 +90,16 @@ follow the guide it shows.
 
 ## What your agent can do
 
-It gets the same four tools as any weft's agent:
+It gets the same six tools as any weft's agent:
 
 - `status` says which weft it is and how many of its notifications are still
   waiting for you. It is a good first call to prove the connection works.
 - `notify` leaves you a note: a short title, and a body saying what happened.
-- `upload` gives a one-time address to send a picture to, so a note can carry a
-  screenshot.
-- `view` looks again at a picture shown in a conversation. A hollow weft has no
-  conversation, so there is nothing for it to look at.
+- `upload` gives a one-time address to send a picture or file to, so a note can
+  carry a screenshot or a report.
+- `view` looks again at a picture it uploaded.
+- `list` and `grab` find and fetch the files it has in your gallery. With no chat, a
+  hollow weft has only what it uploaded itself.
 
 None of them can read or write a chat thread. A hollow weft's agent therefore has
 fewer powers than a full one, not more, and there is nothing extra to lock down.

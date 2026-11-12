@@ -7,20 +7,22 @@ Two routers, because they serve two different callers:
   whether it is open, close it, close them all. CSRF-checked like every other browser
   route.
 * ``upload_router`` is for the agent, which has no Weft login: reading its one-time
-  invite, and sending a file to the one-time address the ``upload`` tool handed out.
+  invite, sending a file to the one-time address the ``upload`` tool handed out, and
+  fetching one from the address ``grab`` handed out.
   No cookie and no CSRF: each address is the credential, works once, and lapses. See
   app/door.py.
 """
 
 from datetime import datetime
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import BaseModel
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import db, deps, door, gallery
+from app import attachments, db, deps, door, gallery
 from app.models import User, Weft, WeftKey
 from app.refresh import hash_token
 from app.routes.attachments import receive
@@ -239,3 +241,29 @@ async def upload(
         type=described["type"],
         size=described["size"],
     )
+
+
+@upload_router.get("/download/{ticket}")
+async def download(ticket: str = Path(pattern=r"^[A-Za-z0-9_-]{20,64}$")) -> FileResponse:
+    """A file sent from a one-time address the ``grab`` tool handed out.
+
+    The address is used up by the first try. What it serves was checked when it was
+    handed out: a file of this weft's user that this weft has been shown.
+    """
+    found = door.take_download(ticket)
+    path = attachments.path_for(found.user_id, found.hash) if found else None
+    if path is None or not path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="That download address is used, lapsed or unknown. Ask grab for another.",
+        )
+    async with db.get_sessionmaker()() as session:
+        item = await gallery.item_for(session, found.user_id, found.hash)
+    name = item.name if item else "file"
+    mime = item.mime if item else "application/octet-stream"
+    if path.suffix == ".webp" and not name.lower().endswith(".webp"):
+        name = f"{name}.webp"
+    return FileResponse(path, media_type=mime, headers={
+        "Content-Disposition": f"attachment; filename*=UTF-8''{quote(name)}",
+        "Cache-Control": "no-store",
+    })

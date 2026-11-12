@@ -28,6 +28,7 @@ one again.
 
 import hashlib
 import os
+import re
 from datetime import datetime, timezone
 import tempfile
 from collections.abc import AsyncIterator
@@ -346,6 +347,46 @@ async def remove(session: AsyncSession, user_id: str, digest: str) -> bool:
     if on_disk:
         path.unlink(missing_ok=True)
     return True
+
+
+async def visible_to(session: AsyncSession, user_id: str, weft_id: str,
+                     digest: str) -> GalleryItem | None:
+    """One of the user's items, if this weft may have it: it was shared with the weft,
+    or it is a picture from before the gallery, when nothing recorded who was shown
+    what and every weft of the user could look at every picture. Does not commit."""
+    item = await adopt(session, user_id, digest)
+    if item is None:
+        return None
+    if await session.get(GalleryShare, (user_id, digest, weft_id)) is not None:
+        return item
+    return item if item.source is None else None
+
+
+class Ambiguous(LookupError):
+    """More than one of a weft's files goes by that name. The message lists them."""
+
+
+async def find_for_weft(session: AsyncSession, user_id: str, weft_id: str,
+                        reference: str) -> GalleryItem | None:
+    """The item a weft's agent means: by its hash anywhere in ``reference`` (the line
+    upload gave, an address, the hash alone), or else by its name, among the items
+    shared with that weft. Raises ``Ambiguous`` for a name several share."""
+    match = _HASH_ANYWHERE.search(reference or "")
+    if match:
+        return await visible_to(session, user_id, weft_id, match.group(0))
+    wanted = (reference or "").strip().casefold()
+    if not wanted:
+        return None
+    named = [i for i in await shared_with(session, weft_id) if i.name.casefold() == wanted]
+    if len(named) > 1:
+        raise Ambiguous(
+            f'{len(named)} files are called "{named[0].name}". Name one by its hash: '
+            + ", ".join(i.hash for i in named)
+        )
+    return named[0] if named else None
+
+
+_HASH_ANYWHERE = re.compile(r"[0-9a-f]{64}")
 
 
 def describe(item: GalleryItem) -> dict:

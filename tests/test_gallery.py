@@ -24,7 +24,7 @@ from tests.test_auth_routes import PASSWORD, login, make_user
 from tests.test_background_routes import picture
 from tests.test_chat_routes import ready, stub_chat  # noqa: F401 (fixture)
 from tests.test_door import (  # noqa: F401 (fixtures)
-    address_in, call, door_client, fresh_tickets, put, weft_with_key,
+    address_in, call, door_client, fresh_tickets, put, text_of, weft_with_key,
 )
 from tests.test_provider_routes import signed_in
 from tests.test_session_routes import fake_store, keeping  # noqa: F401 (fixture)
@@ -356,3 +356,108 @@ async def test_one_user_cannot_delete_anothers_file(csrf_client, session):
 
     csrf_client.headers["Authorization"] = bob_auth
     assert (await csrf_client.get(f"/api/attachments/{digest}")).status_code == 200
+
+
+# ---- the agent's list and grab ---------------------------------------------------
+
+
+def downloads_in(result) -> str:
+    import re
+    return re.search(r"https://weft\.test/api/door/download/[A-Za-z0-9_-]+", text_of(result))[0]
+
+
+async def fetch(client, address):
+    return await client.get(address, headers={"Origin": "", "X-Weft-CSRF": "", "Authorization": ""})
+
+
+@pytest.mark.asyncio
+async def test_list_and_grab_reach_what_the_agent_uploaded(door_client, session):
+    _, key = await weft_with_key(door_client, session)
+    stored = await put(door_client, address_in(await call(door_client, key, "upload",
+                                                          name="Night Drive.mp3")), MP3)
+    digest = stored.json()["hash"]
+
+    listed = text_of(await call(door_client, key, "list"))
+    assert "Night Drive.mp3 | audio/mpeg" in listed
+    assert "from you" in listed
+    assert digest in listed
+
+    for handle in (digest, "night drive.mp3", stored.json()["reference"]):
+        offered = await call(door_client, key, "grab", file=handle)
+        address = downloads_in(offered)
+        got = await fetch(door_client, address)
+        assert got.status_code == 200
+        assert got.content == MP3
+        assert got.headers["content-type"] == "audio/mpeg"
+        assert "Night%20Drive.mp3" in got.headers["content-disposition"]
+        # Once only.
+        assert (await fetch(door_client, address)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_weft_cannot_grab_what_it_was_not_given(door_client, session):
+    weft, key = await weft_with_key(door_client, session)
+    # The user's own upload, sent nowhere yet.
+    mine = (await put_file(door_client, PDF, "private.pdf")).json()["hash"]
+    # Another weft's agent's upload.
+    other = await add_weft(door_client, "Other")
+    other_key = (await door_client.post(f"/api/wefts/{other['id']}/door")).json()["key"]
+    theirs = (await put(door_client, address_in(await call(door_client, other_key, "upload",
+                                                           name="theirs.mp3")), MP3)).json()["hash"]
+
+    assert "Nothing yet" in text_of(await call(door_client, key, "list"))
+    for handle in (mine, theirs, "private.pdf", "theirs.mp3"):
+        result = await call(door_client, key, "grab", file=handle)
+        assert result["isError"] is True, handle
+        assert "No such file" in text_of(result)
+
+    # Sent in its chat, it is the weft's to have.
+    await gallery.share(session, (await door_client.get("/api/auth/me")).json()["id"],
+                        [mine], weft["id"])
+    listed = text_of(await call(door_client, key, "list"))
+    assert "private.pdf" in listed and "from your user" in listed
+    assert "theirs.mp3" not in listed
+    got = await fetch(door_client, downloads_in(await call(door_client, key, "grab", file=mine)))
+    assert got.content == PDF
+
+
+@pytest.mark.asyncio
+async def test_view_is_limited_to_the_wefts_pictures_but_keeps_old_ones(door_client, session):
+    weft, key = await weft_with_key(door_client, session)
+    other = await add_weft(door_client, "Other")
+    other_key = (await door_client.post(f"/api/wefts/{other['id']}/door")).json()["key"]
+    theirs = (await put(door_client, address_in(await call(door_client, other_key, "upload")),
+                        picture())).json()["hash"]
+
+    refused = await call(door_client, key, "view", reference=theirs)
+    assert refused["isError"] is True
+
+    # A picture from before the gallery: every weft could look at it then, and still can.
+    old = (await upload(door_client, picture(colour=(10, 200, 30)))).json()["hash"]
+    await session.execute(GalleryItem.__table__.delete().where(GalleryItem.hash == old))
+    await session.commit()
+    seen = await call(door_client, key, "view", reference=old)
+    assert any(part["type"] == "image" for part in seen["content"])
+    assert weft
+
+
+@pytest.mark.asyncio
+async def test_grab_names_the_hashes_when_a_name_is_shared(door_client, session):
+    _, key = await weft_with_key(door_client, session)
+    for data in (MP3, MP3 + b"x"):
+        await put(door_client, address_in(await call(door_client, key, "upload",
+                                                     name="take.mp3")), data)
+
+    result = await call(door_client, key, "grab", file="take.mp3")
+    assert result["isError"] is True
+    assert "2 files are called" in text_of(result)
+
+
+@pytest.mark.asyncio
+async def test_list_searches_by_name(door_client, session):
+    _, key = await weft_with_key(door_client, session)
+    for name, data in (("cover.pdf", PDF), ("song.mp3", MP3)):
+        await put(door_client, address_in(await call(door_client, key, "upload", name=name)), data)
+
+    listed = text_of(await call(door_client, key, "list", search="SONG"))
+    assert "song.mp3" in listed and "cover.pdf" not in listed

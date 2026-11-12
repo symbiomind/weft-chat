@@ -2575,6 +2575,48 @@
         ]
       }
     },
+    "/api/door/download/{ticket}": {
+      "get": {
+        "description": "A file sent from a one-time address the ``grab`` tool handed out.\n\nThe address is used up by the first try. What it serves was checked when it was\nhanded out: a file of this weft's user that this weft has been shown.",
+        "operationId": "download_api_door_download__ticket__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{20,64}$",
+              "title": "Ticket",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download",
+        "tags": [
+          "door"
+        ]
+      }
+    },
     "/api/door/invite/{token}": {
       "get": {
         "description": "The page an invite points at: mints the weft's key and serves the guide, once.\n\nRead by the agent, which has no Weft login: the address is the credential. Markdown,\nbecause a model reads it. A second read gets a 410, which says the invite existed\nand is gone, rather than a 404 that could be a typo.",
