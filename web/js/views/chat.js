@@ -89,6 +89,7 @@ import { accountCard, renderAccount } from "./account.js";
 import { renderAbout } from "./about.js";
 import { renderComfort } from "./comfort.js";
 import { renderNotifications } from "./notifications.js";
+import { renderGallery } from "./gallery.js";
 
 /** Where the current pick is remembered. Per device, per browser, and that is all. */
 const PICK_KEY = "weft.pick";
@@ -910,6 +911,7 @@ export function renderChat(root) {
       }),
       // Always here, even before any weft can send: it is how anyone learns they can.
       screen("Notifications", panels.PURPOSE.notifications, openNotifications, waitingBadge()),
+      screen("Gallery", panels.PURPOSE.gallery, openGallery),
       screen("Account", panels.PURPOSE.account, openAccount),
       el("div", { class: "drawer-rule" }),
       screen("Wefts", panels.PURPOSE.wefts, openWefts),
@@ -1112,6 +1114,24 @@ export function renderChat(root) {
       },
       openPicture: openLightbox,
     }), { page: "notifications" });
+  }
+
+  /** Every picture and file from the chats, and a way to send one to a weft. */
+  function openGallery() {
+    closePickMenu();
+    closeDrawer();
+    panels.push((p) => renderGallery(p, {
+      wefts,
+      canTake: takesPictures,
+      pictureUrl: attachmentUrl,
+      openPicture: openLightbox,
+      // Into that weft's tray, to go with the next message: sending is what shows it.
+      onSend: (entry, item, url) => {
+        panels.popAll();
+        choose(entry);
+        tray.addStored(item, url);
+      },
+    }), { page: "gallery" });
   }
 
   /** The count on the drawer's Notifications entry: none at all when nothing waits. */

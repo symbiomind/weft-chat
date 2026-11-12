@@ -369,6 +369,93 @@
         "title": "FinishIn",
         "type": "object"
       },
+      "GalleryItemOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "hash": {
+            "title": "Hash",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "shown_to": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Shown To",
+            "type": "array"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "weft_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weft Id"
+          }
+        },
+        "required": [
+          "hash",
+          "name",
+          "kind",
+          "type",
+          "size",
+          "source",
+          "weft_id",
+          "created_at",
+          "shown_to"
+        ],
+        "title": "GalleryItemOut",
+        "type": "object"
+      },
+      "GalleryOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GalleryItemOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "GalleryOut",
+        "type": "object"
+      },
       "GuideOut": {
         "properties": {
           "intro": {
@@ -2588,6 +2675,65 @@
         "summary": "Upload",
         "tags": [
           "door"
+        ]
+      }
+    },
+    "/api/gallery": {
+      "get": {
+        "description": "Everything in the caller's gallery, newest first.",
+        "operationId": "list_gallery_api_gallery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Gallery",
+        "tags": [
+          "gallery"
+        ]
+      }
+    },
+    "/api/gallery/{digest}": {
+      "delete": {
+        "description": "Delete one of the caller's pictures or files, for good. Its references in chats\nstay, and show it as gone.",
+        "operationId": "delete_item_api_gallery__digest__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "digest",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{64}$",
+              "title": "Digest",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Item",
+        "tags": [
+          "gallery"
         ]
       }
     },

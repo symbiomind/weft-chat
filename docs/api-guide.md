@@ -378,8 +378,15 @@ the door, is kept in the user's gallery.
   `body: {attachments: [{hash, name}]}`, a file with `"kind": "file"` added, never the
   bytes themselves. `/api/session/thread` gives each message back with its `attachments`
   (empty for most, each with its `kind`) and its text without the marker.
-- **Retention:** nothing in the gallery expires. Deleting is the user's, and comes with
-  the gallery page.
+- **The gallery:** `GET /api/gallery` returns everything the caller has, newest first,
+  as `{items: [{hash, name, kind, type, size, source, weft_id, created_at, shown_to}]}`.
+  `source` is `user`, `weft` or null (a picture from before the gallery), `weft_id` the
+  weft whose agent brought it, and `shown_to` the weft ids it has been shared with. A
+  file uploaded with `PUT /api/attachments` and not yet sent is in the gallery and shown
+  to no weft.
+- **Retention:** nothing in the gallery expires. `DELETE /api/gallery/{hash}` deletes
+  one for good (**204**, or **404** if the caller has no such file): its bytes, its row
+  and its shares. Chats that referred to it then fetch a **404** and show it as gone.
 
 ### Push to talk
 

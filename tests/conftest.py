@@ -155,9 +155,11 @@ async def client(app_config, session):
     from app.routes import tips as tip_routes
     from app.routes import notifications as notification_routes
     from app.routes import push as push_routes
+    from app.routes import gallery as gallery_routes
 
     app = FastAPI()
     app.include_router(attachment_routes.router)
+    app.include_router(gallery_routes.router)
     app.include_router(auth_routes.router)
     app.include_router(chat_routes.router)
     app.include_router(provider_routes.router)

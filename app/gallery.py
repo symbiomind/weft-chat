@@ -28,6 +28,7 @@ one again.
 
 import hashlib
 import os
+from datetime import datetime, timezone
 import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -290,6 +291,61 @@ async def shared_with(session: AsyncSession, weft_id: str) -> list[GalleryItem]:
         .order_by(GalleryShare.shared_at.desc())
     )
     return list(rows.scalars())
+
+
+async def adopt_all(session: AsyncSession, user_id: str) -> None:
+    """Give every picture in the user's folder that has no row its row. For the gallery
+    page, which shows everything, including what came before the gallery. Commits."""
+    folder = attachments.user_folder(user_id)
+    if not folder.is_dir():
+        return
+    known = set((await session.execute(
+        select(GalleryItem.hash).where(GalleryItem.user_id == user_id))).scalars())
+    added = False
+    for path in folder.glob("*.webp"):
+        digest = path.stem
+        if digest in known or not attachments._HASH.match(digest):
+            continue
+        stat = path.stat()
+        session.add(GalleryItem(
+            user_id=user_id, hash=digest, name="picture", mime="image/webp",
+            size=stat.st_size, source=None,
+            created_at=datetime.fromtimestamp(stat.st_mtime, timezone.utc),
+        ))
+        added = True
+    if added:
+        await session.commit()
+
+
+async def everything(session: AsyncSession, user_id: str) -> list[tuple[GalleryItem, list[str]]]:
+    """The user's whole gallery, newest first, each item with the wefts it was shown."""
+    await adopt_all(session, user_id)
+    items = list((await session.execute(
+        select(GalleryItem).where(GalleryItem.user_id == user_id)
+        .order_by(GalleryItem.created_at.desc()))).scalars())
+    shown: dict[str, list[str]] = {}
+    for digest, weft_id in (await session.execute(
+            select(GalleryShare.hash, GalleryShare.weft_id)
+            .where(GalleryShare.user_id == user_id)
+            .order_by(GalleryShare.shared_at))).all():
+        shown.setdefault(digest, []).append(weft_id)
+    return [(item, shown.get(item.hash, [])) for item in items]
+
+
+async def remove(session: AsyncSession, user_id: str, digest: str) -> bool:
+    """Delete one of the user's files: its bytes, its row and what it was shown. False
+    if there was nothing to delete. The references in chats stay, and show it gone."""
+    path = attachments.path_for(user_id, digest)
+    item = await session.get(GalleryItem, (user_id, digest))
+    on_disk = path is not None and path.is_file()
+    if item is None and not on_disk:
+        return False
+    if item is not None:
+        await session.delete(item)
+        await session.commit()
+    if on_disk:
+        path.unlink(missing_ok=True)
+    return True
 
 
 def describe(item: GalleryItem) -> dict:

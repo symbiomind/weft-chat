@@ -289,3 +289,70 @@ async def test_deleting_a_weft_keeps_its_files_and_forgets_its_shares(door_clien
     assert (item.hash, item.weft_id) == (digest, None)
     assert await shares(session) == set()
     assert (await door_client.get(f"/api/attachments/{digest}")).status_code == 200
+
+
+# ---- the gallery page ----------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_the_gallery_lists_everything_newest_first_with_who_was_shown_it(
+    csrf_client, session, stub_chat,
+):
+    weft_id = await ready(csrf_client, session)
+    pdf = (await put_file(csrf_client, PDF, "sheet.pdf")).json()["hash"]
+    song = (await put_file(csrf_client, MP3, "song.mp3")).json()["hash"]
+    await csrf_client.post("/api/chat", json=chat(weft_id, [
+        {"role": "user", "content": "listen", "attachments": [{"hash": song, "name": "song.mp3"}]},
+    ]))
+
+    items = (await csrf_client.get("/api/gallery")).json()["items"]
+    assert [i["hash"] for i in items] == [song, pdf]
+    assert items[0]["shown_to"] == [weft_id]
+    assert items[1]["shown_to"] == []
+    assert (items[1]["kind"], items[1]["type"], items[1]["source"]) == ("file", "application/pdf", "user")
+
+
+@pytest.mark.asyncio
+async def test_the_gallery_shows_pictures_from_before_it(csrf_client, session):
+    await signed_in(csrf_client, session)
+    digest = (await upload(csrf_client, picture())).json()["hash"]
+    await session.execute(GalleryItem.__table__.delete())
+    await session.commit()
+
+    items = (await csrf_client.get("/api/gallery")).json()["items"]
+    assert [(i["hash"], i["kind"], i["source"]) for i in items] == [(digest, "picture", None)]
+
+
+@pytest.mark.asyncio
+async def test_deleting_takes_the_file_its_row_and_its_shares(
+    csrf_client, session, stub_chat, tmp_path,
+):
+    weft_id = await ready(csrf_client, session)
+    song = (await put_file(csrf_client, MP3, "song.mp3")).json()["hash"]
+    await csrf_client.post("/api/chat", json=chat(weft_id, [
+        {"role": "user", "content": "x", "attachments": [{"hash": song, "name": "song.mp3"}]},
+    ]))
+
+    assert (await csrf_client.delete(f"/api/gallery/{song}")).status_code == 204
+
+    assert (await csrf_client.get("/api/gallery")).json()["items"] == []
+    assert await shares(session) == set()
+    assert (await csrf_client.get(f"/api/attachments/{song}")).status_code == 404
+    assert (await csrf_client.get(f"/api/attachments/{song}/about")).status_code == 404
+    assert (await csrf_client.delete(f"/api/gallery/{song}")).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_one_user_cannot_delete_anothers_file(csrf_client, session):
+    await signed_in(csrf_client, session, username="bob")
+    digest = (await put_file(csrf_client, PDF, "bob.pdf")).json()["hash"]
+    bob_auth = csrf_client.headers["Authorization"]
+
+    await make_user(session, username="carol")
+    response = await login(csrf_client, username="carol", password=PASSWORD)
+    csrf_client.headers["Authorization"] = f"Bearer {response.json()['access_token']}"
+    assert (await csrf_client.delete(f"/api/gallery/{digest}")).status_code == 404
+    assert (await csrf_client.get("/api/gallery")).json()["items"] == []
+
+    csrf_client.headers["Authorization"] = bob_auth
+    assert (await csrf_client.get(f"/api/attachments/{digest}")).status_code == 200

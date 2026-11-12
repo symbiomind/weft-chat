@@ -286,6 +286,20 @@ export function attachmentBlob(hash) {
   return apiBlob(`/api/attachments/${encodeURIComponent(hash)}`);
 }
 
+/**
+ * Everything in this user's gallery, newest first: `{items: [{hash, name, kind, type,
+ * size, source, weft_id, created_at, shown_to}]}`. `shown_to` is the weft ids that
+ * have been shown it.
+ */
+export function listGallery() {
+  return apiFetch("/api/gallery");
+}
+
+/** Delete one of this user's pictures or files, for good. */
+export function deleteGalleryItem(hash) {
+  return apiFetch(`/api/gallery/${encodeURIComponent(hash)}`, { method: "DELETE" });
+}
+
 /** What one of this user's files is, `{hash, kind, name, type, size}`, without it. */
 export function attachmentAbout(hash) {
   return apiFetch(`/api/attachments/${encodeURIComponent(hash)}/about`);

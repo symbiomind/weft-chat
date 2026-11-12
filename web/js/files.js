@@ -53,6 +53,19 @@ function blobUrl(hash) {
   return blobs.get(hash);
 }
 
+/** A blob: URL for one of this user's files, fetched once and kept for the page's life. */
+export function fileUrl(hash) {
+  return blobUrl(hash);
+}
+
+/** The icon name for a type, for anything that draws a file. */
+export { iconFor };
+
+/** Hand a file to the device under its own name. */
+export function saveFile(hash, name) {
+  return save(hash, name);
+}
+
 /** Let go of every file fetched to play or save. For a view being torn down. */
 export function releaseFiles() {
   for (const pending of blobs.values()) {
@@ -73,6 +86,7 @@ export function sizeText(bytes) {
 /** What to call a type on the card: "MP3", "PDF", "text". */
 export function typeText(mime) {
   const known = {
+    "image/webp": "picture",
     "application/pdf": "PDF",
     "audio/mpeg": "MP3",
     "audio/aac": "AAC",

@@ -109,6 +109,37 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
     changed();
   }
 
+  /**
+   * Put something already in the gallery in the tray, as if it had just been chosen:
+   * from the gallery page's "send to a weft". `url` is a picture's blob: URL, owned by
+   * whoever passed it, so the tray never revokes it.
+   */
+  function addStored({ hash, name, kind }, url = null) {
+    if (items.some((i) => i.hash === hash)) return;
+    if (items.length >= MAX_PICTURES) {
+      onError?.(name || "that", `a message can carry ${MAX_PICTURES} pictures and files at most`);
+      return;
+    }
+    const file = kind === "file";
+    const label = name || (file ? "file" : "picture");
+    const face = !file && url
+      ? el("img", { src: url, alt: label })
+      : el("span", { class: "tray-file" }, [icon("file"), el("span", { text: label })]);
+    const node = el("div", { class: "tray-item", role: "listitem", title: label }, [face]);
+    const item = { name: label, url, hash, kind: file ? "file" : "picture",
+                   failed: false, handed: true, node };
+    node.append(el("button", {
+      type: "button",
+      class: "tray-remove",
+      "aria-label": `remove ${label}`,
+      text: "✕",
+      onclick: () => remove(item),
+    }));
+    items.push(item);
+    element.append(node);
+    changed();
+  }
+
   element.hidden = true;
 
   input.addEventListener("change", () => {
@@ -128,6 +159,8 @@ export function createTray({ upload, onError, onUploaded, onChange } = {}) {
   return {
     element,
     input,
+
+    addStored,
 
     /** Open the device's picker. Must be called from inside a tap. */
     choose() {

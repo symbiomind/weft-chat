@@ -245,6 +245,7 @@ def create_app() -> FastAPI:
 
     # ---- routers go here, BEFORE the static mount ----
     from app.routes import attachments as attachment_routes
+    from app.routes import gallery as gallery_routes
     from app.routes import auth as auth_routes
     from app.routes import chat as chat_routes
     from app.routes import door as door_routes
@@ -259,6 +260,7 @@ def create_app() -> FastAPI:
     from app.routes import wefts as weft_routes
 
     app.include_router(attachment_routes.router)
+    app.include_router(gallery_routes.router)
     app.include_router(auth_routes.router)
     app.include_router(chat_routes.router)
     app.include_router(provider_routes.router)
