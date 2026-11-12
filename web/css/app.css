@@ -1177,6 +1177,10 @@ button.row.pick-speaker.current{border-color:color-mix(in srgb, var(--fern) 55%,
    so a streaming update cannot delete them. */
 .bubble-text{white-space:pre-wrap; overflow-wrap:break-word}
 .bubble-text:empty{display:none}
+/* an address in a message (js/links.js): the bubble's own colour, underlined, so it reads
+   on every weft's pair; a long one may break anywhere rather than widen the bubble */
+.bubble-text a, .note-body a{color:inherit; text-decoration:underline;
+  text-underline-offset:2px; overflow-wrap:anywhere}
 .bubble-pics:has(+ .bubble-text:empty){margin-bottom:0}
 /* several pictures on one message share the row as a grid of smaller ones */
 .bubble-pics:has(> :nth-child(2)) .bubble-pic img{width:112px; height:112px; max-width:none}

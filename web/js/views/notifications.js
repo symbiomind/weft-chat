@@ -17,6 +17,7 @@ import { el } from "../dom.js";
 import { dress, pairOf } from "../colours.js";
 import { PURPOSE, panelHead } from "../panels.js";
 import * as providersApi from "../providers.js";
+import { fillLinked } from "../links.js";
 import { picturesIn } from "../references.js";
 import { notifySwitch } from "../notify.js";
 
@@ -114,7 +115,11 @@ export function renderNotifications(panels, { wefts, onChanged, onOpenWeft, open
       from(weft, note),
       el("div", { class: "row-name", text: note.title }),
     ]);
-    if (shown.text) main.append(el("p", { class: "note-body", text: shown.text }));
+    if (shown.text) {
+      const body = el("p", { class: "note-body" });
+      fillLinked(body, shown.text);
+      main.append(body);
+    }
     if (shown.pictures.length) main.append(pictures(shown.pictures));
     const row = el("div", { class: "row note" }, [main, dismiss]);
     dress(row, pairOf(weft));

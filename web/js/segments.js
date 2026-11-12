@@ -182,7 +182,9 @@ export function createSegmenter({ softMax = 400 } = {}) {
  * Square brackets are NOT touched, on purpose — that is where Kokoro's inline
  * `[voice:zm_yunjian]` tags live, and stripping them would silently remove a feature.
  * The one exception is a whole markdown image, `![name](address)`: the leading `!` and
- * the address make it unmistakable, and its address read aloud is pure noise.
+ * the address make it unmistakable, and its address read aloud is pure noise. A bare
+ * web address is cut down the same way, to its host: `suno.com`, not forty characters
+ * of song id.
  *
  * A segment with no letters or digits left — a sign-off emoji, a `---` rule, a lone
  * `…` — comes back empty, so it is never sent. There is nothing in it to say, and
@@ -199,6 +201,9 @@ export function forSpeech(segment) {
     // Markdown images, including a picture a weft shows. The bubble
     // shows the picture; nobody wants its address read aloud.
     .replace(/!\[[^\]\n]*\]\([^)\s]*\)/g, " ")
+    // A bare web address is a link in the bubble; aloud, only where it goes is worth
+    // hearing, so it is read as its host. The full stop after it stays, for the voice.
+    .replace(/https?:\/\/(?:www\.)?([A-Za-z0-9.-]+)(?:[^\s<>"`()]*[^\s<>"`().,;:!?'])?/g, "$1")
     // Inline code: keep the words, drop the backticks.
     .replace(/`([^`]*)`/g, "$1")
     // Heading markers at the start of a line.

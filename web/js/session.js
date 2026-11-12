@@ -301,7 +301,7 @@ const FRAME_BOUNDARY = /\r?\n\r?\n/;
  * tail of a frame is the kind of bug that only appears once a model writes a long
  * answer, which is exactly when nobody wants to be debugging the transport.
  */
-function parseFrame(frame) {
+export function parseFrame(frame) {
   const data = [];
   for (const line of frame.split(/\r?\n/)) {
     if (line.startsWith("data:")) data.push(line.slice(5).trimStart());

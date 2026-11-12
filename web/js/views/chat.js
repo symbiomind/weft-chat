@@ -61,6 +61,7 @@ import { watchHealth } from "../health.js";
 import { createDonut } from "../canvas/donut.js";
 import * as panels from "../panels.js";
 import * as providersApi from "../providers.js";
+import { fillLinked } from "../links.js";
 import { picturesIn } from "../references.js";
 import { streamChat } from "../relay.js";
 import { createSegmenter, forSpeech, speakableSegments } from "../segments.js";
@@ -1713,7 +1714,7 @@ export function renderChat(root) {
     }
     if (attached?.length) bubble.prepend(picturesFor(attached));
     if (role === "ai") setBubbleText(bubble, text);
-    else span.textContent = text;
+    else fillLinked(span, text);
     // Who said it, for a screen reader moving through the log; the eye has the colours
     // and the sides for that.
     const who = role === "user" ? "You" : current?.name ?? "Weft";
@@ -1732,7 +1733,7 @@ export function renderChat(root) {
   function setBubbleText(bubble, text, { streaming = false } = {}) {
     const shown = picturesIn(text, { streaming });
     const span = bubble.querySelector(".bubble-text");
-    span.textContent = shown.text;
+    fillLinked(span, shown.text, { streaming });
 
     const row = bubble.querySelector(".bubble-shown");
     if (sameAttachments(bubble.shown, shown.pictures)) return;
