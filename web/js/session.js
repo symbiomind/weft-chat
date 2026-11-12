@@ -211,6 +211,33 @@ async function raw(path, options = {}) {
   return response;
 }
 
+/**
+ * `raw`, and once more with a fresh CSRF token if the first try was refused for CSRF.
+ *
+ * The CSRF cookie belongs to the browser, not to the page. Weft open twice in one
+ * browser (an installed app and a tab, two tabs, two app windows) means two pages
+ * sharing one cookie, and every login, refresh and page load sets it anew. The page
+ * that did not set it last holds a token that no longer matches it, and its next
+ * write is refused, even though nothing is wrong. Refused, that is, until it asks
+ * for a token of its own: /csrf sets the cookie and hands back the same value, and
+ * the write goes through on the second try.
+ *
+ * Only a refusal for CSRF is retried, and only once. The refusal comes before the
+ * server looks at anything else, so the first try had no effect, and a refresh token
+ * it carried was never presented: retrying cannot replay one.
+ */
+async function sent(path, options = {}) {
+  const response = await raw(path, options);
+  const method = (options.method || "GET").toUpperCase();
+  if (response.status !== 403 || !WRITE_METHODS.has(method)) return response;
+  if ((await json(response.clone())).detail !== CSRF_REFUSED) return response;
+  await bootstrapCsrf();
+  return raw(path, options);
+}
+
+/** What app/deps.py says when the double-submit check fails. */
+const CSRF_REFUSED = "CSRF validation failed";
+
 /** Parse a JSON body, tolerating an empty one. */
 async function json(response) {
   const text = await response.text();
@@ -246,7 +273,7 @@ async function toError(response) {
  * Every module that talks to the server goes through here.
  */
 export async function apiFetch(path, options = {}) {
-  let response = await raw(path, options);
+  let response = await sent(path, options);
 
   if (response.status === 401 && accessToken) {
     // The access token expired between our scheduled refresh and now (a backgrounded
@@ -257,7 +284,7 @@ export async function apiFetch(path, options = {}) {
     } catch {
       throw await toError(response);
     }
-    response = await raw(path, options);
+    response = await sent(path, options);
   }
 
   if (!response.ok) throw await toError(response);
@@ -272,7 +299,7 @@ export async function apiFetch(path, options = {}) {
  * one place. The only difference from apiFetch is what comes back.
  */
 export async function apiBlob(path, options = {}) {
-  let response = await raw(path, options);
+  let response = await sent(path, options);
 
   if (response.status === 401 && accessToken) {
     try {
@@ -280,7 +307,7 @@ export async function apiBlob(path, options = {}) {
     } catch {
       throw await toError(response);
     }
-    response = await raw(path, options);
+    response = await sent(path, options);
   }
 
   if (!response.ok) throw await toError(response);
@@ -332,7 +359,7 @@ export function parseFrame(frame) {
  * because by then the status code is long gone.
  */
 export async function* apiStream(path, options = {}) {
-  let response = await raw(path, options);
+  let response = await sent(path, options);
 
   if (response.status === 401 && accessToken) {
     try {
@@ -340,7 +367,7 @@ export async function* apiStream(path, options = {}) {
     } catch {
       throw await toError(response);
     }
-    response = await raw(path, options);
+    response = await sent(path, options);
   }
 
   if (!response.ok) throw await toError(response);
@@ -419,7 +446,7 @@ export function refresh() {
   refreshPromise = (async () => {
     let response;
     try {
-      response = await raw(`${BASE}/refresh`, { method: "POST" });
+      response = await sent(`${BASE}/refresh`, { method: "POST" });
     } catch (err) {
       // No answer at all. Nothing was rejected; the cookie is still good.
       scheduleRetry();
@@ -431,7 +458,7 @@ export function refresh() {
         // A 401 here means "go to login", NOT "retry". The server has already cleared
         // the cookie; retrying presents a token it has rejected, and if the rejection
         // was reuse detection then every retry looks like a fresh attack in its logs.
-        // A 403 is a CSRF refusal, and the same token would only be refused again.
+        // A 403 is a CSRF refusal that a fresh token did not cure either (see sent).
         clear();
         throw await toError(response);
       }

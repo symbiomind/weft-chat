@@ -368,6 +368,47 @@ describe("apiFetch", () => {
   });
 });
 
+describe("a CSRF token another page replaced", () => {
+  it("fetches a fresh token and sends the write once more", async () => {
+    let puts = 0;
+    const calls = stubFetch((url, options) => {
+      if (url.endsWith("/csrf")) return jsonResponse({ csrf: "fresh" });
+      if (url.endsWith("/login")) return jsonResponse(TOKENS(1));
+      puts += 1;
+      const token = new Headers(options.headers).get("X-Weft-CSRF");
+      return token === "fresh"
+        ? jsonResponse({ hash: "h" })
+        : jsonResponse({ detail: "CSRF validation failed" }, 403);
+    });
+
+    await session.login("alice", "password");
+    const result = await session.apiFetch("/api/attachments", { method: "PUT", body: "x" });
+
+    assert.equal(result.hash, "h");
+    assert.equal(puts, 2, "the refused write and its one retry");
+    assert.ok(calls.at(-2).url.endsWith("/csrf"), "a fresh token is fetched in between");
+  });
+
+  it("gives up after one retry, and leaves other 403s alone", async () => {
+    let puts = 0;
+    stubFetch((url) => {
+      if (url.endsWith("/csrf")) return jsonResponse({ csrf: "c" });
+      if (url.endsWith("/login")) return jsonResponse(TOKENS(1));
+      puts += 1;
+      return url.includes("forbidden")
+        ? jsonResponse({ detail: "Not yours." }, 403)
+        : jsonResponse({ detail: "CSRF validation failed" }, 403);
+    });
+
+    await session.login("alice", "password");
+    await assert.rejects(() => session.apiFetch("/api/x", { method: "PUT" }), (e) => e.status === 403);
+    assert.equal(puts, 2);
+    puts = 0;
+    await assert.rejects(() => session.apiFetch("/api/forbidden", { method: "PUT" }));
+    assert.equal(puts, 1, "a 403 that is not about CSRF is not retried");
+  });
+});
+
 // ---- signed-in devices -----------------------------------------------------------
 
 describe("devices", () => {
