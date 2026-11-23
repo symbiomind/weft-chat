@@ -48,6 +48,24 @@ the model. A store that fails costs a saved turn, reported in an error frame, ne
 reply. Everything about the store is resolved before the response begins, so the stream
 itself touches no database.
 
+**A session kept upstream** (2026-11-24). Some engines keep the conversation themselves:
+a bridge with a session store of its own writes each turn as the agent saw it, and
+offers the person a read-only view of it. Weft finds out from the store, with no setting
+to get wrong: before it asks the engine, it opens the session, and a store that answers
+``read_only: true`` is that view. Then weft
+
+- sends ``X-Session-Id`` with the session's id, so the engine writes the conversation
+  this weft reads (each weft, and each typed id, its own);
+- sends only what's new (system messages, and everything after the last reply),
+  because the engine replays the rest itself, as the agent saw it;
+- appends nothing: the engine did. The window catches up from the store as it does
+  for another device's turn.
+
+Only when the engine and the store share an origin, though. A derived id carries the
+username, which a stranger's model API has no business seeing, and a read-only store
+next to an unrelated engine is a weft set up wrong: the engine forgets, and the store
+never fills. That case is said in an error frame on every turn, plainly, until fixed.
+
 **The quiet** (2026-11-10). A proxy in front of Weft, Cloudflare's tunnel for one, closes
 a response that sends nothing for about a hundred seconds. An agent working through tool
 calls behind a gateway that streams only its words can be silent far longer than that,
@@ -64,6 +82,7 @@ import asyncio
 import json
 import logging
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
@@ -75,7 +94,7 @@ from app import attachments, db, deps, eliza, gallery, upstream, vault
 from app.attachments import MAX_PER_MESSAGE, Attachment
 from app.models import User, utcnow
 from app.routes.providers import owned_provider
-from app.routes.sessions import keep_exchange, resolve_store
+from app.routes.sessions import keep_exchange, open_session, resolve_store
 from app.routes.wefts import owned_weft
 
 logger = logging.getLogger(__name__)
@@ -175,6 +194,32 @@ class ChatIn(BaseModel):
     messages: list[Message] = Field(min_length=1, max_length=MAX_MESSAGES)
 
 
+def same_origin(a: str, b: str) -> bool:
+    """Whether two base URLs are the same server: scheme, host and port."""
+    def origin(url: str):
+        parts = urlsplit(url.strip())
+        scheme = parts.scheme.lower()
+        return scheme, (parts.hostname or "").lower(), parts.port or {"http": 80, "https": 443}.get(scheme)
+    try:
+        return origin(a) == origin(b)
+    except ValueError:
+        return False
+
+
+def only_new(wire: list[dict]) -> list[dict]:
+    """What an engine that keeps the conversation needs: the system messages, and
+    everything after the last reply."""
+    last_reply = max((i for i, m in enumerate(wire) if m["role"] == "assistant"), default=-1)
+    return [m for i, m in enumerate(wire) if m["role"] == "system" or i > last_reply]
+
+
+#: Said on every turn of a weft whose store is a read-only view of a session an
+#: engine keeps, while it chats with a different engine.
+ELSEWHERE = ("This weft's history is kept by the engine at {store}, but it chats with {engine}, "
+             "so nothing is remembered. Point the weft's engine at {store} as well, or pick "
+             "another history store for it.")
+
+
 def _frame(obj: dict) -> str:
     """One SSE frame.
 
@@ -246,15 +291,36 @@ async def chat(
     } or None
     sent_at = utcnow().isoformat()
 
+    wire = await wire_messages(body.messages, user.id, tell_spoken=user.stt_tell_weft)
+
+    # Who keeps the conversation: weft (appending each exchange), or the engine, which
+    # the store says by answering read-only (see *A session kept upstream*). A store
+    # that can't be reached now leaves weft keeping it, and the append reports it.
+    opened, kept_upstream, store_notice = False, False, None
+    if store is not None:
+        try:
+            head = await open_session(store)
+            opened = True
+        except upstream.UpstreamError:
+            head = {}
+        except Exception:
+            logger.exception("Opening session %s failed", store.session_id)
+            head = {}
+        if isinstance(head, dict) and head.get("read_only") is True:
+            if same_origin(provider.base_url, store.base_url):
+                kept_upstream = True
+            else:
+                store_notice = ELSEWHERE.format(store=store.base_url, engine=provider.base_url)
+
     payload = {
         "model": model_id,
-        "messages": await wire_messages(
-            body.messages, user.id, tell_spoken=user.stt_tell_weft),
+        "messages": only_new(wire) if kept_upstream else wire,
         "stream": True,
     }
 
     opening = asyncio.ensure_future(upstream.stream_chat(
-        provider.base_url, secret, payload, extra_headers=weft.headers
+        provider.base_url, secret, payload, extra_headers=weft.headers,
+        **({"session_id": store.session_id} if kept_upstream else {}),
     ))
     try:
         deltas = await asyncio.wait_for(asyncio.shield(opening), HEADER_GRACE_SECONDS)
@@ -288,10 +354,13 @@ async def chat(
 
             # Only a reply that arrived is kept — the same rule the window applies to its
             # own copy, so the store and the window agree about what was said.
-            if store is not None and user_text and reply:
+            # The engine kept it, or the store is a view that keeps nothing from us.
+            if store_notice:
+                yield _frame({"error": store_notice})
+            elif store is not None and user_text and reply and not kept_upstream:
                 notice = await keep_exchange(
                     store, user_text, "".join(reply), model=model_id, sent_at=sent_at,
-                    user_body=user_body,
+                    user_body=user_body, opened=opened,
                 )
                 if notice:
                     yield _frame({"error": notice})

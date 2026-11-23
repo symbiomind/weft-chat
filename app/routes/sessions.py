@@ -97,28 +97,38 @@ async def resolve_store(
     return sessions.store_for(user, weft, store, _open_or_500(store, user)), weft
 
 
+async def open_session(store: sessions.Store) -> dict:
+    """Make sure the session exists, and return what the store says about it.
+
+    An automatic id is claimed (created, or confirmed to be this user's); a typed one is
+    joined as it stands, whoever made it, and created only if it isn't there. The answer
+    carries ``read_only: true`` when an engine upstream keeps the conversation and this
+    store only shows it (app/routes/chat.py, *A session kept upstream*).
+    """
+    if store.joined:
+        found = await upstream.session_handshake(store.base_url, store.secret, store.session_id)
+        if found is not None:
+            return found
+    return await upstream.ensure_session(
+        store.base_url, store.secret, store.session_id, agent=store.agent, user=store.user,
+    ) or {}
+
+
 async def keep_exchange(store: sessions.Store, user_text: str, reply: str, *,
                         model: str, sent_at: str,
-                        user_body: dict | None = None) -> str | None:
+                        user_body: dict | None = None, opened: bool = False) -> str | None:
     """Append one finished exchange to the store. Returns a notice for the user on
     failure, None on success.
+
+    ``opened`` says the relay already made sure the session exists (``open_session``)
+    before it asked the engine, so that isn't asked twice.
 
     Never raises: the reply has already been shown, and a store that is down must cost
     the user a saved turn, not the answer they just read.
     """
     try:
-        if store.joined:
-            # A typed id joins a session as it stands, whoever made it.
-            if await upstream.session_handshake(store.base_url, store.secret, store.session_id) is None:
-                await upstream.ensure_session(
-                    store.base_url, store.secret, store.session_id,
-                    agent=store.agent, user=store.user,
-                )
-        else:
-            await upstream.ensure_session(
-                store.base_url, store.secret, store.session_id,
-                agent=store.agent, user=store.user,
-            )
+        if not opened:
+            await open_session(store)
         await upstream.append_session_events(
             store.base_url, store.secret, store.session_id,
             [

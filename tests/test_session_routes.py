@@ -34,19 +34,23 @@ async def add_store(client, name="Sessions", url="http://mmce.test:5005"):
     )
 
 
-async def ready(csrf_client, session, model="bridge/iris"):
+async def ready(csrf_client, session, model="bridge/iris", store_url="http://mmce.test:5005"):
     """Alice, a weft bound to a chat provider, and a session store. Returns both ids."""
     await signed_in(csrf_client, session)
     provider_id = (await add_provider(csrf_client)).json()["id"]
     weft_id = (await add_weft(csrf_client, "Iris", provider_id, model))["id"]
-    store_id = (await add_store(csrf_client)).json()["id"]
+    store_id = (await add_store(csrf_client, url=store_url)).json()["id"]
     return weft_id, store_id
 
 
 @pytest.fixture
 def fake_store(monkeypatch):
     """An in-memory session store behind the upstream functions, recording every call."""
-    state = {"sessions": {}, "calls": [], "fail": None}
+    #: read_only: answer as a read-only view of a session an engine keeps.
+    state = {"sessions": {}, "calls": [], "fail": None, "read_only": False}
+
+    def seen(found):
+        return {**found, "read_only": True} if state["read_only"] else found
 
     def check(secret):
         assert secret == STORE_SECRET
@@ -57,13 +61,13 @@ def fake_store(monkeypatch):
         check(secret)
         state["calls"].append(("handshake", session_id))
         found = state["sessions"].get(session_id)
-        return None if found is None else {"last_seq": len(found["events"]), **found}
+        return None if found is None else seen({"last_seq": len(found["events"]), **found})
 
     async def ensure(base_url, secret, session_id, *, agent, user):
         check(secret)
         state["calls"].append(("ensure", session_id, agent, user))
         state["sessions"].setdefault(session_id, {"agent": agent, "user": user, "events": []})
-        return state["sessions"][session_id]
+        return seen(state["sessions"][session_id])
 
     async def append(base_url, secret, session_id, events, attempts=3):
         check(secret)
@@ -215,8 +219,8 @@ async def test_the_store_survives_moving_away_from_session(csrf_client, session)
 # Writing: the chat relay
 # ---------------------------------------------------------------------------
 
-async def keeping(csrf_client, session, session_id=None):
-    weft_id, store_id = await ready(csrf_client, session)
+async def keeping(csrf_client, session, session_id=None, **kwargs):
+    weft_id, store_id = await ready(csrf_client, session, **kwargs)
     response = await set_history(
         csrf_client, weft_id, "session",
         session_provider_id=store_id, session_id=session_id,
@@ -243,6 +247,85 @@ async def test_the_chat_relay_appends_the_exchange(csrf_client, session, stub_ch
         (2, "assistant", "Hello, m8"),
     ]
     assert stored["events"][1]["model"] == "bridge/iris"
+
+
+# ---------------------------------------------------------------------------
+# A session kept upstream: the store answers read-only
+# ---------------------------------------------------------------------------
+
+#: The chat provider's origin in these tests (tests/test_provider_routes.add_provider).
+ENGINE = "https://api.example.test"
+
+
+def window(text="and again"):
+    return [
+        {"role": "system", "content": "Be brief."},
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "Hello, m8"},
+        {"role": "user", "content": text},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_an_engine_that_keeps_the_session_is_told_which_and_sent_only_whats_new(
+    csrf_client, session, stub_chat, fake_store,
+):
+    weft_id, _, key = await keeping(csrf_client, session, store_url=ENGINE)
+    fake_store["read_only"] = True
+
+    response = await csrf_client.post("/api/chat", json={"weft_id": weft_id, "messages": window()})
+
+    assert deltas(response.text) == "Hello, m8"
+    assert not [f for f in frames(response.text) if "error" in f]
+    [call] = stub_chat
+    assert call["session_id"] == key
+    assert [(m["role"], m["content"]) for m in call["payload"]["messages"]] == [
+        ("system", "Be brief."), ("user", "and again")]
+    # The engine wrote it; weft appends nothing.
+    assert not [c for c in fake_store["calls"] if c[0] == "append"]
+
+
+@pytest.mark.asyncio
+async def test_a_store_weft_keeps_itself_gets_no_header_and_the_whole_window(
+    csrf_client, session, stub_chat, fake_store,
+):
+    weft_id, _, key = await keeping(csrf_client, session, store_url=ENGINE)
+
+    await csrf_client.post("/api/chat", json={"weft_id": weft_id, "messages": window()})
+
+    [call] = stub_chat
+    assert call["session_id"] is None
+    assert len(call["payload"]["messages"]) == 4
+    assert len(fake_store["sessions"][key]["events"]) == 2
+    # Opened once, before the engine was asked, not again for the append.
+    assert [c[0] for c in fake_store["calls"]] == ["ensure", "append"]
+
+
+@pytest.mark.asyncio
+async def test_a_read_only_store_beside_another_engine_says_so_and_sends_no_id(
+    csrf_client, session, stub_chat, fake_store,
+):
+    weft_id, _, _ = await keeping(csrf_client, session)    # the store is elsewhere
+    fake_store["read_only"] = True
+
+    response = await csrf_client.post("/api/chat", json={"weft_id": weft_id, "messages": window()})
+
+    assert deltas(response.text) == "Hello, m8"
+    [call] = stub_chat
+    assert call["session_id"] is None
+    assert len(call["payload"]["messages"]) == 4
+    errors = [f["error"] for f in frames(response.text) if "error" in f]
+    assert len(errors) == 1 and "nothing is remembered" in errors[0]
+    assert not [c for c in fake_store["calls"] if c[0] == "append"]
+
+
+def test_same_origin_is_scheme_host_and_port():
+    from app.routes.chat import same_origin
+    assert same_origin("https://a.test/v1", "https://A.test")
+    assert same_origin("https://a.test:443/v1", "https://a.test/")
+    assert not same_origin("https://a.test", "http://a.test")
+    assert not same_origin("https://a.test", "https://b.test")
+    assert not same_origin("https://a.test:8443", "https://a.test")
 
 
 @pytest.mark.asyncio

@@ -302,6 +302,16 @@ The service does the talking, so the browser never holds the store's token:
   message and the reply (partial, if the stream broke) to the store. If the store
   fails, the reply is still delivered and one `{"error": "This exchange was not saved…"}`
   frame follows it. An empty reply is not kept.
+- **A session the engine keeps:** before asking the engine, the relay opens the session
+  (creating or confirming it). A store that answers `read_only: true` is a read-only
+  view of a session an engine keeps itself, such as a bridge that stores each turn as
+  its agent saw it. If the engine's base URL has the same origin as the store's, the
+  relay sends `X-Session-Id: <session_key>` with the chat request and sends only what's
+  new (system messages and everything after the last assistant message), and it appends
+  nothing: the engine wrote the exchange, and the window catches up from the store. If
+  the origins differ, nothing is sent about the session, nothing is appended, and an
+  `{"error": "This weft's history is kept by the engine at …"}` frame follows each
+  reply, because that weft remembers nothing until its engine and store match.
 - **Reading:** `GET /api/session/thread?weft_id=` returns
   `{session_key, messages, has_more}`: the last `window_turns` exchanges as
   `{role, content, attachments}` messages. Other kinds of event a harness may have written (tool

@@ -423,11 +423,15 @@ async def _events(response: httpx.Response):
 
 
 async def stream_chat(base_url: str, secret: str, payload: dict, *,
-                      extra_headers: list | None = None):
+                      extra_headers: list | None = None, session_id: str | None = None):
     """POST a chat completion and yield its text deltas as they arrive.
 
     ``extra_headers`` is the pick's own ``[[name, value], ...]``, sent alongside
     Weft's. It can add headers and never replace one: see ``RESERVED_HEADERS``.
+
+    ``session_id`` goes as ``X-Session-Id``, for an engine that keeps the conversation
+    itself and needs to know which one this is (app/routes/chat.py, *A session kept
+    upstream*). It wins over a pick's own header of that name.
 
     **Errors before the first token raise ``UpstreamError``; errors after it do not.**
     That asymmetry is forced by HTTP, not chosen: once a 200 and its headers are on the
@@ -443,6 +447,10 @@ async def stream_chat(base_url: str, secret: str, payload: dict, *,
     """
     url = chat_url(base_url)
     headers = _extra_headers(extra_headers)
+    if session_id is not None:
+        for name in [n for n in headers if n.lower() == "x-session-id"]:
+            del headers[name]
+        headers["X-Session-Id"] = session_id
     headers.update(_auth_headers(secret))
     headers["Accept"] = "text/event-stream"
 

@@ -50,9 +50,9 @@ def stub_chat(monkeypatch):
     """Stub the outbound chat call and record the url, secret and payload it got."""
     calls = []
 
-    async def fake(base_url, secret, payload, *, extra_headers=None):
+    async def fake(base_url, secret, payload, *, extra_headers=None, session_id=None):
         calls.append({"base_url": base_url, "secret": secret, "payload": payload,
-                      "extra_headers": extra_headers})
+                      "extra_headers": extra_headers, "session_id": session_id})
 
         async def gen():
             for piece in ("Hello", ", ", "m8"):

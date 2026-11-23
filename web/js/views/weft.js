@@ -539,7 +539,9 @@ export function renderWeft(panels, {
       const store = stores.find((s) => s.id === sessionProviderId);
       keptNote.textContent = history === "session"
         ? `Kept in the session store${store ? ` on ${store.name}` : ""}, so every device ` +
-          "that opens this weft sees the same thread. Weft relays it and keeps none of it."
+          "that opens this weft sees the same thread. Weft relays it and keeps none of it. " +
+          "If the store says the engine keeps the conversation itself, Weft lets it, and " +
+          "only shows it."
         : "Kept on this device only — your phone will not show what you said here, " +
           "and the service stores none of it.";
     }
